@@ -127,3 +127,6 @@ th:first-child,td:first-child{min-width:54px;width:54px}
 .progress-dialog .job-actions{flex-wrap:wrap}
 .progress-dialog .job-actions button,.progress-dialog .job-actions a{min-height:40px;font-size:12px}
 @media(max-width:480px){.progress-dialog{max-height:calc(100dvh - 24px)}.progress-dialog .job{padding:12px}.progress-dialog-bar{padding:10px 12px}}
+
+.progress-reopen{width:100%;margin-top:12px;min-height:40px;color:var(--accent);border-color:var(--accent)}
+.progress-reopen-floating{position:fixed;right:max(12px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));z-index:50;width:auto;max-width:calc(100vw - 24px);margin:0;padding:10px 16px;background:var(--panel);box-shadow:0 4px 20px #0003;font-size:13px;min-height:44px}

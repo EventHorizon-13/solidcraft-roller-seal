@@ -43,6 +43,11 @@ with sync_playwright() as p:
             assert box['x']+box['width'] <= width and box['y']+box['height'] <= height
             page.get_by_role('button',name='关闭任务进度弹窗').click()
             assert page.locator('#progressDialog').is_hidden()
+            reopen=page.locator('#showProgressBtn')
+            assert reopen.is_visible()
+            rb=reopen.bounding_box()
+            assert 0<=rb['x'] and 0<=rb['y'] and rb['x']+rb['width']<=width and rb['y']+rb['height']<=height
+            assert reopen.evaluate('(el)=>getComputedStyle(el).position')=='fixed'
             page.locator('#showProgressBtn').click()
             assert page.locator('#progressDialog').is_visible()
             page.keyboard.press('Escape')
