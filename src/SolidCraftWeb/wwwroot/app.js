@@ -424,14 +424,14 @@ document.addEventListener('DOMContentLoaded', () => {
   reopen.type = 'button';
   reopen.textContent = '查看任务进度';
   reopen.hidden = false;
-  reopen.className = 'progress-reopen';
+  reopen.className = 'progress-reopen progress-reopen-floating';
   document.querySelector('.settings').append(reopen);
   dialog.addEventListener('close', () => {
     reopen.hidden = false;
     reopen.classList.add('progress-reopen-floating');
   });
   function openProgress() {
-    reopen.hidden = true;
+    reopen.hidden = false;
     if (panel.tagName === 'DETAILS') panel.open = true;
     if (!dialog.open) dialog.showModal();
   }
