@@ -26,6 +26,14 @@ with sync_playwright() as p:
         expect(page.locator('#accessDialog')).not_to_be_visible()
         page.evaluate('() => document.fonts.ready')
         assert page.locator('.brand').inner_text()=='标准辊密封生成'
+        # Neutral engineering surfaces remain consistent across system themes.
+        for scheme in ['light', 'dark']:
+            page.emulate_media(color_scheme=scheme)
+            assert page.locator('body').evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(30, 30, 30)'
+            assert page.locator('.settings').evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(37, 37, 38)'
+            assert page.locator('.settings').evaluate('(el)=>getComputedStyle(el).borderRadius')=='2px'
+            assert page.locator('#dxfBtn').evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(14, 99, 156)'
+        assert page.locator('.export-actions span').count()==0
         assert page.locator('#hiddenLineScale,#viewGap,#combineStep,#stepName,.editor-card,.task-step-details').count()==0
         assert page.locator('#grid th').count()==15
         assert page.locator('#grid input[data-column="14"]').count()==0
@@ -80,6 +88,10 @@ with sync_playwright() as p:
             expect(page.locator('#jobMessage')).to_contain_text('正在渲染')
             assert page.locator('#jobProgress').evaluate('(el)=>el.value<el.max')
             assert page.locator('.task-status-line').is_hidden()
+            assert page.locator('#progressDialog').evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(37, 37, 38)'
+            assert page.locator('#progressDialog').evaluate('(el)=>getComputedStyle(el).borderRadius')=='3px'
+            if kind=='dxf':
+                page.screenshot(path=f'../../work/ui-task-{name}.png',full_page=True)
             assert page.locator('#showProgressBtn').is_hidden()
             assert not page.locator('.log-details').evaluate('(el)=>el.open')
             body=requests[-1]
