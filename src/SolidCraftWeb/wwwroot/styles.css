@@ -106,3 +106,11 @@ html,body,body *{touch-action:manipulation}
 /* The header has only the title and task progress entry. */
 .topbar{grid-template-columns:minmax(0,1fr) auto}
 .topbar>.progress-reopen{grid-column:2;grid-row:1}
+
+
+/* Give the task dialog a distinct surface in dark mode. */
+@media(prefers-color-scheme:dark){
+ .progress-dialog{background:#29372f;border:1px solid #708678;box-shadow:0 24px 80px rgba(0,0,0,.84),0 0 0 1px rgba(177,211,191,.16)}
+ .progress-dialog::backdrop{background:rgba(0,0,0,.76)}
+ .progress-dialog-bar{border-bottom:1px solid #475a4d;padding-bottom:14px}
+}

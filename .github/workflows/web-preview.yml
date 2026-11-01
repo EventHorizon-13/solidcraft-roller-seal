@@ -220,7 +220,7 @@ jobs:
 
   release:
     needs: build
-    if: github.event_name == 'push' && contains(github.event.head_commit.message, 'Release Web preview 0.1.6')
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, 'Release Web preview 0.1.7')
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -242,16 +242,17 @@ jobs:
             printf 'Expected two Web preview packages, found %s\n' "${#files[@]}"
             exit 1
           fi
-          tag="web-0.1.6-preview"
-          title="标准辊密封批量生成 Web 0.1.6 Preview"
+          tag="web-0.1.7-preview"
+          title="标准辊密封批量生成 Web 0.1.7 Preview"
           cat > dist/release-notes.md <<'EOF'
-          标准辊密封生成 Web 0.1.6 Preview，Linux amd64/arm64。
+          标准辊密封生成 Web 0.1.7 Preview，Linux amd64/arm64。
 
           - 未启用斜边时，斜边 Y/Z 允许空白；启用时要求有效正数。
           - 同步当前参数表、快速 DXF/PDF 与四项项目输出、简化输入和统一按钮样式。
           - API Key 弹窗输入与浏览器记忆，失效直接提示；公开包沿用原密钥鉴权策略。
           - 任务进度按实际阶段更新，完成前不满格；参数检查成功短暂提示、错误手动关闭。
           - 手机列宽、输入字号/缩放、表格视口高度和顶栏卡片布局优化。
+          - 深色模式任务进度弹窗加强遮罩、底色、描边和阴影对比。
           - UI 与接口检查通过后发布；本包不替代 Windows 正式版。
 
           EOF
