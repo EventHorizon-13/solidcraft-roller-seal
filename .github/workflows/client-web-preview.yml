@@ -114,6 +114,7 @@ jobs:
           cp src/SolidCraftWeb/wwwroot/client.css dist/site-root/roller-seal/
           cp src/SolidCraftWeb/wwwroot/client-app.js dist/site-root/roller-seal/
           cp README.md THIRD_PARTY_NOTICES.md CLIENT_COMPUTE_EXPERIMENT.md dist/site-root/roller-seal/
+          cp -R docs dist/site-root/roller-seal/
           cat > dist/site-root/roller-seal/DEPLOY.txt <<'EOF'
           Copy this roller-seal/ directory into the existing iobyte.cn website document root.
           It becomes /roller-seal/ and leaves the site's root and homepage files untouched.
@@ -129,3 +130,41 @@ jobs:
           name: iobyte-cn-roller-seal-subdirectory
           path: dist/iobyte-cn-roller-seal-subdirectory.zip
           retention-days: 14
+
+  publish-release:
+    needs: build
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, 'Release Browser preview 0.1.0')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist/release-assets
+          merge-multiple: true
+      - name: Publish browser Web preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          files=(dist/release-assets/StandardRollerSeal-client-api-linux-*.tar.gz dist/release-assets/iobyte-cn-roller-seal-subdirectory.zip)
+          test "${#files[@]}" -eq 3
+          for file in "${files[@]}"; do test -f "$file"; done
+          cat > release-notes.md <<'EOF'
+          标准辊密封生成 浏览器计算版 0.1.0 Preview。
+
+          - 提供网站静态子目录包与 Linux amd64/arm64 生成记录 API 包。
+          - 在浏览器中完成模型、单件 STEP、可选 CSV 和 ZIP 生成，不上传 CAD 文件。
+          - 同步参数表精简、斜边空白判断、任务弹窗、阶段进度、检查参数提示及手机布局。
+          - 浏览器端 DXF/PDF 尚未接入；本实验版本不替代 Windows 正式版。
+          EOF
+          tag=web-client-0.1.0-preview
+          title="标准辊密封生成 浏览器计算版 0.1.0 Preview"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "${files[@]}" --clobber
+            gh release edit "$tag" --title "$title" --notes-file release-notes.md --prerelease
+          else
+            gh release create "$tag" "${files[@]}" --target "$GITHUB_SHA" --title "$title" --notes-file release-notes.md --prerelease
+          fi
+
