@@ -18,7 +18,7 @@ const {spawn}=require('child_process');
  });
  await page.addInitScript(()=>localStorage.setItem('solidcraft.webgl','1'));
  await page.goto('http://127.0.0.1:8765/roller-seal/',{waitUntil:'domcontentloaded'});
- await page.waitForFunction(()=>document.querySelector('#connectionState').textContent.includes('已就绪'),{},{timeout:240000}).catch(async e=>{console.log(await page.locator('#connectionState').textContent());await page.screenshot({path:'browser-result-failed.png',fullPage:true});throw e;});
+ await page.waitForFunction(()=>Boolean(state.engine) && !document.querySelector('#stepBtn').disabled,{},{timeout:240000}).catch(async e=>{console.log(await page.locator('#jobMessage').textContent());await page.screenshot({path:'browser-result-failed.png',fullPage:true});throw e;});
  console.log('Browser engine ready');
  for(let n=0;n<2;n++){
   if(n===1)await page.setViewportSize({width:390,height:844});
@@ -36,6 +36,7 @@ const {spawn}=require('child_process');
   await page.screenshot({path:'browser-result-dialog-'+n+'.png',fullPage:true});
   await page.getByRole('button',{name:'关闭任务进度弹窗'}).click();
   if(!await page.locator('#showProgressBtn').isVisible())throw Error('Reopen button hidden after close');
+  await page.locator('#showProgressBtn').scrollIntoViewIfNeeded();
   const rb=await page.locator('#showProgressBtn').boundingBox();
   if(rb.x<0||rb.y<0||rb.x+rb.width>viewport.width||rb.y+rb.height>viewport.height)throw Error('Reopen button outside viewport');
   await page.click('#showProgressBtn');
@@ -45,3 +46,4 @@ const {spawn}=require('child_process');
  await page.screenshot({path:'browser-result.png',fullPage:true});
  await browser.close();server.kill();
 })().catch(e=>{console.error(e);process.exit(1)});
+

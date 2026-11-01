@@ -9,10 +9,9 @@ const state = { rows:[DEFAULT_ROW.slice()], busy:false, engine:null, defaults:nu
 const el = {};
 
 document.addEventListener("DOMContentLoaded", () => {
-  for (const id of ["connectionState","csvFile","importBtn","addBtn","validateBtn","rowCount","grid","jobState","jobMessage","jobProgress","log","stepName","viewGap","combineStep","exportCsv","stepBtn","solidCraftFrame"]) {
+  for (const id of ["csvFile","importBtn","addBtn","validateBtn","rowCount","grid","jobState","jobMessage","jobProgress","log","exportCsv","stepBtn","solidCraftFrame"]) {
     el[id] = document.getElementById(id);
   }
-  el.stepName.value = "辊密封_" + dateStamp();
   el.importBtn.addEventListener("click", () => el.csvFile.click());
   el.csvFile.addEventListener("change", importCsv);
   el.addBtn.addEventListener("click", addRow);
@@ -29,7 +28,7 @@ document.addEventListener("DOMContentLoaded", () => {
   waitForEngine().catch(error => setConnection("SolidCraft 加载失败：" + error.message));
 });
 
-function setConnection(message) { el.connectionState.textContent = message; }
+function setConnection(message) { state.connectionStatus = message; }
 function dateStamp() {
   const now = new Date();
   return String(now.getMonth() + 1).padStart(2, "0") + String(now.getDate()).padStart(2, "0");
@@ -40,16 +39,16 @@ function renderTable() {
   const header = document.createElement("tr");
   const actionHead = document.createElement("th");
   actionHead.textContent = "操作"; header.appendChild(actionHead);
-  for (const name of COLUMNS) { const th = document.createElement("th"); th.textContent = name; header.appendChild(th); }
+  for (const name of COLUMNS.slice(0,14)) { const th = document.createElement("th"); th.textContent = name; if(FLAGS.has(name))th.className="flag-head"; header.appendChild(th); }
   head.appendChild(header);
   state.rows.forEach((row, rowIndex) => {
     const tr = document.createElement("tr");
     const action = document.createElement("td");
     const remove = document.createElement("button");
-    remove.type = "button"; remove.className = "delete"; remove.textContent = "删除";
+    remove.type = "button"; remove.className = "delete"; remove.textContent = "×"; remove.setAttribute("aria-label","删除此行");
     remove.addEventListener("click", () => { state.rows.splice(rowIndex, 1); if (!state.rows.length) state.rows.push(DEFAULT_ROW.slice()); renderTable(); });
     action.appendChild(remove); tr.appendChild(action);
-    COLUMNS.forEach((name, colIndex) => {
+    COLUMNS.slice(0,14).forEach((name, colIndex) => {
       const td = document.createElement("td"), input = document.createElement("input");
       input.dataset.row = String(rowIndex); input.dataset.column = String(colIndex);
       if (FLAGS.has(name)) {
@@ -81,7 +80,7 @@ function pasteGrid(event) {
   const matrix = raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n").filter((line, i, all) => !(i === all.length - 1 && line === "")).map(line => line.split("\t"));
   matrix.forEach((cells, y) => cells.forEach((value, x) => {
     const r = startRow + y, c = startCol + x;
-    if (c >= COLUMNS.length) return;
+    if (c >= 14) return;
     while (state.rows.length <= r) state.rows.push(DEFAULT_ROW.slice());
     if (FLAGS.has(COLUMNS[c])) state.rows[r][c] = ["1","true","yes","是"].includes(value.trim().toLowerCase()) ? "1" : "0";
     else state.rows[r][c] = value;
@@ -177,9 +176,10 @@ function normalizeRows() {
   });
 }
 function checkRows() {
-  try { const rows = normalizeRows(); writeLog("参数检查通过，共 " + rows.length + " 行；检查在浏览器本地完成。"); }
-  catch (error) { writeLog("参数检查失败：" + error.message); }
+  try { normalizeRows(); showValidationResult(true); }
+  catch (error) { showValidationResult(false, error.message); }
 }
+
 function csvText(rows) {
   const quote = value => '"' + String(value).replace(/"/g, '""') + '"';
   return "\uFEFF" + [COLUMNS, ...rows].map(row => row.map(quote).join(",")).join("\r\n") + "\r\n";
@@ -368,12 +368,10 @@ async function startGeneration() {
   try { rows = normalizeRows(); }
   catch (error) { setJob("failed",error.message); writeLog("生成前检查失败：" + error.message); return; }
   if (!state.engine) { setJob("failed","SolidCraft 浏览器引擎尚未就绪。"); return; }
-  const gap = Number(el.viewGap.value);
+  const gap = 60;
   if (!Number.isFinite(gap) || gap < 10 || gap > 5000) { setJob("failed","组合件间距须为 10 至 5000 mm。"); return; }
-  let combinedName;
-  try { combinedName = safeStepName(el.stepName.value); }
-  catch (error) { setJob("failed",error.message); return; }
-  setBusy(true); el.jobProgress.hidden = false; el.jobProgress.max = rows.length + (el.combineStep.checked ? 1 : 0); el.jobProgress.value = 0;
+  beginTaskTracking(rows,{step:true,combine:false,csv:el.exportCsv.checked,zip:true});
+  setBusy(true);
   el.log.textContent = ""; setJob("running","所有建模和 STEP 导出均在浏览器本地执行。");
   const files = [], pieces = [], prefix = "rs-" + crypto.randomUUID().replace(/-/g,"");
   try {
@@ -391,6 +389,7 @@ async function startGeneration() {
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i], base = filePart(row[0]), temp = prefix + "-" + (i + 1);
       setJob("running","正在生成 " + (i + 1) + "/" + rows.length + "：" + row[0]);
+      taskTracker.activate("row-"+i+"-model");
       const changes = rowChanges(row);
       await engineExecute("parameters.change",{changes});
       const parameterResult = await engineExecute("parameters.list",{filter:"user"});
@@ -400,50 +399,32 @@ async function startGeneration() {
       if (halfChecks.length !== 1 || !Number.isFinite(halfValue) || Math.abs(halfValue) > 1e-9) throw new Error("型号 " + row[0] + " 的半孔校验未通过。");
       const doc = await state.engine.inspect({measure:true});
       if (!Array.isArray(doc.bodies) || doc.bodies.length === 0) throw new Error("型号 " + row[0] + " 没有有效实体。");
-      const bounds = el.combineStep.checked ? boundsOf(doc) : {bodies:doc.bodies.length,min:[0,0,0],max:[0,0,0]};
+      const bounds = {bodies:doc.bodies.length,min:[0,0,0],max:[0,0,0]};
       if (Array.isArray(doc.timeline)) {
         const failed = doc.timeline.find(feature => feature.error !== undefined && feature.error !== null && String(feature.error).trim());
         if (failed) throw new Error("型号 " + row[0] + " 重算失败：" + String(failed.error));
       }
       const nativeName = temp + ".solidcraft", stepName = temp + ".step";
       const nativePath = "/opfs/" + nativeName, stepPath = "/opfs/" + stepName;
+      taskTracker.activate("row-"+i+"-export");
       const nativeResult = await engineExecute("file.save_as",{path:nativePath,format:"container",cache:true,preview:true});
       const stepResult = await engineExecute("file.export",{path:stepPath,format:"step"});
       files.push({name:base + ".solidcraft",bytes:await opfsBytes(nativeName, nativeResult.bytes)});
       files.push({name:base + ".step",bytes:await opfsBytes(stepName, stepResult.bytes)});
       pieces.push({row,base,bounds,stepPath});
-      el.jobProgress.value = i + 1;
+
       writeLog("已在本机生成 " + base + "（SolidCraft + STEP）。");
     }
-    if (el.combineStep.checked) {
-      setJob("running","正在浏览器内排布并检查组合 STEP…");
-      await engineExecute("file.new",{name:"辊密封组合"});
-      let cursor = 0;
-      for (const piece of pieces) {
-        const offset = cursor - piece.bounds.min[0];
-        const inserted = await engineExecute("file.insert_step",{path:piece.stepPath,name:piece.row[0],up:"z"});
-        const occurrence = occurrenceId(inserted);
-        await engineExecute("occurrence.ground",{occurrence,grounded:false});
-        await engineExecute("occurrence.move",{occurrence,space:"world",translate:[offset,0,0]});
-        cursor += piece.bounds.max[0] - piece.bounds.min[0] + gap;
-      }
-      const assembly = await state.engine.inspect({measure:true}), assemblyBounds = boundsOf(assembly);
-      const expectedBodies = pieces.reduce((sum,piece) => sum + piece.bounds.bodies,0);
-      if (assemblyBounds.bodies !== expectedBodies) throw new Error("组合中的实体数量与单件不一致，已停止导出。");
-      const interference = await engineExecute("inspect.interference",{budget_s:240});
-      requireClearInterference(interference,expectedBodies);
-      const combinedTemp = prefix + "-combined.step", combinedPath = "/opfs/" + combinedTemp;
-      const combinedResult = await engineExecute("file.export",{path:combinedPath,format:"step"});
-      files.push({name:combinedName,bytes:await opfsBytes(combinedTemp, combinedResult.bytes)});
-      el.jobProgress.value = rows.length + 1;
-      writeLog("组合 STEP 已导出，浏览器内实体数量与相交检查通过。");
-    }
+    if (el.exportCsv.checked) taskTracker.activate("csv");
     if (el.exportCsv.checked) files.push({name:"辊密封_" + dateStamp() + ".csv",bytes:new TextEncoder().encode(csvText(rows))});
+    taskTracker.activate("package");
     const zip = makeZip(files);
     const zipName = "辊密封_" + dateStamp() + "_STEP.zip";
+    taskTracker.activate("result");
     safeDownload(zip,zipName,"application/zip");
     const generatedAtUtc = new Date().toISOString();
     const recorded = await submitGenerationRecord(rows,generatedAtUtc);
+    taskTracker.finish();
     setJob("completed",recorded ? "生成完成，结果 ZIP 已下载到当前设备。" : "生成完成，结果 ZIP 已下载；服务器生成记录未能提交。");
     writeLog("浏览器已生成并下载 " + zipName + "（" + files.length + " 个文件）；没有上传模型或导出文件。");
   } catch (error) {
@@ -491,36 +472,153 @@ document.addEventListener('DOMContentLoaded', () => {
   title.textContent = '任务进度';
   const close = document.createElement('button');
   close.type = 'button';
-  close.textContent = '关闭';
+  close.textContent = '×';
   close.setAttribute('aria-label', '关闭任务进度弹窗');
-  close.autofocus = true;
+  dialog.tabIndex = -1;
   close.addEventListener('click', () => dialog.close());
   bar.append(title, close);
   dialog.append(bar, panel);
   document.body.append(dialog);
   const message = document.getElementById('jobMessage');
   if (message) { message.setAttribute('role', 'status'); message.setAttribute('aria-live', 'polite'); }
+  const logDetails = panel.querySelector('.log-details');
+  const log = document.getElementById('log');
+  logDetails.open = false;
+  function syncLogVisibility() {
+    logDetails.hidden = !log.textContent.trim();
+    if (logDetails.hidden) logDetails.open = false;
+  }
+  new MutationObserver(syncLogVisibility).observe(log, {childList:true, characterData:true, subtree:true});
+  syncLogVisibility();
   const reopen = document.createElement('button');
   reopen.id = 'showProgressBtn';
   reopen.type = 'button';
-  reopen.textContent = '查看任务进度';
+  reopen.textContent = '任务进度';
   reopen.hidden = false;
-  reopen.className = 'progress-reopen progress-reopen-floating';
-  document.querySelector('.settings').append(reopen);
+  reopen.className = 'progress-reopen';
+  document.querySelector('.topbar').append(reopen);
   dialog.addEventListener('close', () => {
     reopen.hidden = false;
-    reopen.classList.add('progress-reopen-floating');
   });
   function openProgress() {
     reopen.hidden = false;
-    if (panel.tagName === 'DETAILS') panel.open = true;
-    if (!dialog.open) dialog.showModal();
+
+    if (!dialog.open) { dialog.showModal(); dialog.focus({preventScroll:true}); }
   }
   window.showTaskProgress = openProgress;
   reopen.addEventListener('click', openProgress);
   // Capture the click before async submission so feedback appears immediately.
   document.addEventListener('click', event => {
     const button = event.target.closest('button');
-    if (button && !button.disabled && ['stepBtn','dxfBtn','pdfBtn','validateBtn'].includes(button.id)) openProgress();
+    if (button && !button.disabled && ['stepBtn','dxfBtn','pdfBtn'].includes(button.id)) openProgress();
   }, true);
 });
+
+
+let taskTracker = null;
+function createTaskTracker(rows, options) {
+  const steps = [{id:'prepare',label:'准备任务'}];
+  rows.forEach((row,i) => {
+    const prefix='零件 '+(i+1)+'/'+rows.length+' · '+row[0]+' · ';
+    steps.push({id:'row-'+i+'-model',label:prefix+'参数重算与实体检查'});
+    if(options.drawing)steps.push({id:'row-'+i+'-drawing',label:prefix+'提取三视图'});
+    steps.push({id:'row-'+i+'-export',label:prefix+'保存模型'+(options.step?'与 STEP':'')});
+  });
+  if(options.combine){
+    rows.forEach((row,i)=>steps.push({id:'merge-'+i,label:'合并 STEP · 导入与定位 '+row[0]}));
+    steps.push({id:'interference',label:'合并 STEP · 实体与相交检查'},{id:'combined',label:'合并 STEP · 导出文件'});
+  }
+  if(options.drawing)steps.push({id:'dxf',label:'图纸 · DXF 排版与保存'});
+  if(options.pdf)steps.push({id:'pdf',label:'图纸 · PDF 渲染与保存'});
+  if(options.csv)steps.push({id:'csv',label:'导出参数列表 CSV'});
+  steps.push({id:'package',label:options.zip?'整理文件并打包 ZIP':'整理导出文件'});
+  steps.push({id:'result',label:'准备下载结果'});
+  const progress=document.getElementById('jobProgress'),caption=document.getElementById('jobStep');
+  let current=0,complete=false;
+  function render(){
+    progress.hidden=false;progress.max=steps.length;progress.value=complete?steps.length:current;
+    caption.textContent=complete?'全部 '+steps.length+' 步已完成':'步骤 '+(current+1)+' / '+steps.length;
+  }
+  render();
+  return {steps,activate(id){const next=steps.findIndex(s=>s.id===id);if(next>current&&!complete){current=next;render();}},finish(){complete=true;render();},get current(){return current;},get complete(){return complete;}};
+}
+function beginTaskTracking(rows,options){taskTracker=createTaskTracker(rows,options);}
+
+
+let validationTimer = null;
+function showValidationResult(ok, message = '') {
+  if (validationTimer !== null) { clearTimeout(validationTimer); validationTimer = null; }
+  let dialog = document.getElementById('validationDialog');
+  if (!dialog) {
+    dialog = document.createElement('dialog');
+    dialog.id = 'validationDialog';
+    dialog.className = 'validation-dialog';
+    dialog.setAttribute('aria-labelledby', 'validationTitle');
+    const icon = document.createElement('div');
+    icon.className = 'validation-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    const title = document.createElement('h2');
+    title.id = 'validationTitle';
+    const detail = document.createElement('p');
+    detail.className = 'validation-message';
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.textContent = '知道了';
+    close.addEventListener('click', () => dialog.close());
+    dialog.append(icon, title, detail, close);
+    document.body.append(dialog);
+    dialog.tabIndex = -1;
+    dialog.addEventListener('close', () => {
+      if (validationTimer !== null) { clearTimeout(validationTimer); validationTimer = null; }
+    });
+  }
+  dialog.dataset.result = ok ? 'success' : 'error';
+  dialog.querySelector('.validation-icon').textContent = ok ? '✓' : '!';
+  dialog.querySelector('h2').textContent = ok ? '没有错误' : '检查未通过';
+  const detail = dialog.querySelector('.validation-message');
+  detail.textContent = message;
+  detail.hidden = ok || !message;
+  dialog.querySelector('button').hidden = ok;
+  if (!dialog.open) dialog.showModal();
+  if (ok) {
+    dialog.focus({preventScroll:true});
+    validationTimer = setTimeout(() => {
+      validationTimer = null;
+      if (dialog.open && dialog.dataset.result === 'success') dialog.close();
+    }, 1600);
+  } else dialog.querySelector('button').focus({preventScroll:true});
+}
+
+
+// Fit the table to the viewport after accounting for the real header and toolbar.
+document.addEventListener('DOMContentLoaded', () => {
+  const panel = document.querySelector('.table-panel');
+  const wrap = panel && panel.querySelector('.table-wrap');
+  if (!wrap) return;
+  let pending = false;
+  function update() {
+    pending = false;
+    const viewport = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    const top = panel.getBoundingClientRect().top + window.scrollY;
+    const footer = panel.querySelector('.table-footer');
+    const footerHeight = footer ? footer.getBoundingClientRect().height : 0;
+    const height = tableViewportHeight(viewport, top, footerHeight, window.innerWidth <= 800);
+    wrap.style.setProperty('--table-view-height', height + 'px');
+  }
+  function schedule() {
+    if (!pending) { pending = true; requestAnimationFrame(update); }
+  }
+  const observer = new ResizeObserver(schedule);
+  for (const element of [document.querySelector('.topbar'),document.querySelector('.workspace-heading'),panel.querySelector('.table-footer')]) {
+    if (element) observer.observe(element);
+  }
+  window.addEventListener('resize', schedule);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', schedule);
+  if (document.fonts) document.fonts.ready.then(schedule);
+  schedule();
+});
+function tableViewportHeight(viewport, top, footer, mobile) {
+  const available = Math.max(0, viewport - footer - 24);
+  const desired = Math.max(84, viewport - top - footer - 24);
+  return Math.floor(Math.min(available, mobile ? 220 : available, desired));
+}
