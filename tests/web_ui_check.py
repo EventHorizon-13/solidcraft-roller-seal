@@ -26,13 +26,26 @@ with sync_playwright() as p:
         expect(page.locator('#accessDialog')).not_to_be_visible()
         page.evaluate('() => document.fonts.ready')
         assert page.locator('.brand').inner_text()=='标准辊密封生成'
-        # Neutral engineering surfaces remain consistent across system themes.
+        # Themes follow the system, with the requested seven dark-mode colors.
         for scheme in ['light', 'dark']:
             page.emulate_media(color_scheme=scheme)
-            assert page.locator('body').evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(30, 30, 30)'
-            assert page.locator('.settings').evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(37, 37, 38)'
-            assert page.locator('.settings').evaluate('(el)=>getComputedStyle(el).borderRadius')=='2px'
-            assert page.locator('#dxfBtn').evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(14, 99, 156)'
+            expected = {
+                'light': ['rgb(243, 243, 243)', 'rgb(255, 255, 255)', 'rgb(37, 99, 235)', 'rgb(51, 51, 51)', 'rgb(212, 212, 212)'],
+                'dark': ['rgb(17, 19, 24)', 'rgb(26, 29, 35)', 'rgb(59, 130, 246)', 'rgb(229, 231, 235)', 'rgb(52, 57, 64)']
+            }[scheme]
+            for selector, prop, value in [
+                ('body', 'backgroundColor', expected[0]),
+                ('.settings', 'backgroundColor', expected[1]),
+                ('#dxfBtn', 'backgroundColor', expected[2]),
+                ('body', 'color', expected[3]),
+                ('.settings', 'borderTopColor', expected[4]),
+                ('.settings', 'borderRadius', '2px')
+            ]:
+                assert page.locator(selector).evaluate('(el,prop)=>getComputedStyle(el)[prop]', prop)==value
+            if scheme=='dark':
+                assert page.locator('#grid tbody td').nth(2).evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(36, 40, 48)'
+                assert page.locator('#rowCount').evaluate('(el)=>getComputedStyle(el).color')=='rgb(156, 163, 175)'
+            page.screenshot(path=f'../../work/ui-theme-{scheme}-{name}.png',full_page=True)
         assert page.locator('.export-actions span').count()==0
         assert page.locator('#hiddenLineScale,#viewGap,#combineStep,#stepName,.editor-card,.task-step-details').count()==0
         assert page.locator('#grid th').count()==15
@@ -88,7 +101,7 @@ with sync_playwright() as p:
             expect(page.locator('#jobMessage')).to_contain_text('正在渲染')
             assert page.locator('#jobProgress').evaluate('(el)=>el.value<el.max')
             assert page.locator('.task-status-line').is_hidden()
-            assert page.locator('#progressDialog').evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(37, 37, 38)'
+            assert page.locator('#progressDialog').evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(26, 29, 35)'
             assert page.locator('#progressDialog').evaluate('(el)=>getComputedStyle(el).borderRadius')=='3px'
             if kind=='dxf':
                 page.screenshot(path=f'../../work/ui-task-{name}.png',full_page=True)
