@@ -394,6 +394,11 @@ async function downloadResult(event) {
   try {
     const response = await fetch("/api/jobs/" + id + "/download", { headers: headers() });
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        forgetAccessKey();
+        showAccessDialog("密钥已失效，请重新输入。");
+        return;
+      }
       let message = "下载失败：" + response.status;
       try {
         const body = await response.json();

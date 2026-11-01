@@ -96,6 +96,16 @@ with sync_playwright() as p:
             box=page.locator('#progressDialog').bounding_box()
             assert box['x']>=0 and box['y']>=0 and box['x']+box['width']<=width and box['y']+box['height']<=height
             page.get_by_role('button',name='关闭任务进度弹窗').click()
+        # Expired access during download opens the key dialog directly.
+        page.route('**/api/jobs/ui-check/download',lambda route:route.fulfill(status=401,content_type='application/json',body='{"error":"Unauthorized"}'))
+        page.locator('#showProgressBtn').click()
+        page.locator('#downloadBtn').click()
+        expect(page.locator('#accessDialog')).to_be_visible()
+        assert page.evaluate("() => localStorage.getItem('rollerSealAccessKey.v1')") is None
+        page.locator('#apiToken').fill(TOKEN)
+        page.locator('#accessSubmit').click()
+        expect(page.locator('#accessDialog')).not_to_be_visible()
+        page.get_by_role('button',name='关闭任务进度弹窗').click()
         page.locator('#addBtn').click()
         expect(page.locator('#grid tbody tr')).to_have_count(2)
         page.locator('#grid .delete').first.click()
