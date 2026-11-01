@@ -39,7 +39,7 @@ with sync_playwright() as p:
                 ('#dxfBtn', 'backgroundColor', expected[2]),
                 ('body', 'color', expected[3]),
                 ('.settings', 'borderTopColor', expected[4]),
-                ('.settings', 'borderRadius', '2px')
+                ('.settings', 'borderRadius', '4px')
             ]:
                 assert page.locator(selector).evaluate('(el,prop)=>getComputedStyle(el)[prop]', prop)==value
             assert page.locator('#dxfBtn').evaluate('(el)=>getComputedStyle(el).color')=='rgb(255, 255, 255)'
@@ -108,7 +108,7 @@ with sync_playwright() as p:
             assert page.locator('#jobProgress').evaluate('(el)=>el.value<el.max')
             assert page.locator('.task-status-line').is_hidden()
             assert page.locator('#progressDialog').evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(26, 29, 35)'
-            assert page.locator('#progressDialog').evaluate('(el)=>getComputedStyle(el).borderRadius')=='3px'
+            assert page.locator('#progressDialog').evaluate('(el)=>getComputedStyle(el).borderRadius')=='6px'
             if kind=='dxf':
                 page.screenshot(path=f'../../work/ui-task-{name}.png',full_page=True)
             assert page.locator('#showProgressBtn').is_hidden()
