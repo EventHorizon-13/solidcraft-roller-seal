@@ -77,7 +77,7 @@ app.MapGet("/api/bootstrap", (HttpRequest request) =>
     var local = LocalTemplates.Find(AppContext.BaseDirectory, AppContext.BaseDirectory);
     return Results.Json(new
     {
-        version = "0.1.5-preview",
+        version = "0.1.6-preview",
         columns = ModelRules.Columns,
         flags = ModelRules.Flags.OrderBy(x => x).ToArray(),
         defaultRow = ModelRules.DefaultRow(),
@@ -513,6 +513,7 @@ public sealed class JobState
         }
     }
 }
+
 
 
 
