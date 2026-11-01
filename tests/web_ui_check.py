@@ -31,7 +31,7 @@ with sync_playwright() as p:
             page.emulate_media(color_scheme=scheme)
             expected = {
                 'light': ['rgb(243, 243, 243)', 'rgb(255, 255, 255)', 'rgb(37, 99, 235)', 'rgb(51, 51, 51)', 'rgb(212, 212, 212)'],
-                'dark': ['rgb(17, 19, 24)', 'rgb(26, 29, 35)', 'rgb(59, 130, 246)', 'rgb(229, 231, 235)', 'rgb(52, 57, 64)']
+                'dark': ['rgb(17, 19, 24)', 'rgb(26, 29, 35)', 'rgb(37, 99, 235)', 'rgb(229, 231, 235)', 'rgb(52, 57, 64)']
             }[scheme]
             for selector, prop, value in [
                 ('body', 'backgroundColor', expected[0]),
@@ -42,6 +42,12 @@ with sync_playwright() as p:
                 ('.settings', 'borderRadius', '2px')
             ]:
                 assert page.locator(selector).evaluate('(el,prop)=>getComputedStyle(el)[prop]', prop)==value
+            assert page.locator('#dxfBtn').evaluate('(el)=>getComputedStyle(el).color')=='rgb(255, 255, 255)'
+            assert page.locator('.table-wrap').evaluate('(el)=>getComputedStyle(el).backgroundColor')==expected[0]
+            assert page.locator('#grid th').first.evaluate('(el)=>getComputedStyle(el).backgroundColor')==expected[1]
+            assert page.locator('#exportStep').evaluate('(el)=>getComputedStyle(el).appearance')=='none'
+            checked_color = 'rgb(59, 130, 246)' if scheme=='dark' else 'rgb(37, 99, 235)'
+            assert page.locator('#exportStep').evaluate('(el)=>getComputedStyle(el).backgroundColor')==checked_color
             if scheme=='dark':
                 assert page.locator('#grid tbody td').nth(2).evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(36, 40, 48)'
                 assert page.locator('#rowCount').evaluate('(el)=>getComputedStyle(el).color')=='rgb(156, 163, 175)'
