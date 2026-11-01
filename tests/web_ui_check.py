@@ -1,77 +1,107 @@
-from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
+import json
 
+BASE='http://127.0.0.1:5080/'
+TOKEN='upload-smoke-token'
 with sync_playwright() as p:
-    browser = p.chromium.launch()
-    for width, height, name in [(1440,1000,'desktop'),(390,844,'mobile')]:
-        page = browser.new_page(viewport={'width':width,'height':height}, device_scale_factor=1, locale='zh-CN')
+    browser=p.chromium.launch()
+    for width,height,name in [(1440,1000,'desktop'),(390,844,'mobile'),(320,568,'compact')]:
+        page=browser.new_page(viewport={'width':width,'height':height},locale='zh-CN')
         errors=[]
-        page.on('pageerror',lambda error: errors.append(str(error)))
-        page.add_init_script("sessionStorage.setItem('rollerSealToken','upload-smoke-token')")
-        page.goto('http://127.0.0.1:5080/',wait_until='networkidle')
-        page.locator('#connectionState').filter(has_text='已连接').wait_for()
-        page.evaluate('document.fonts.ready')
-        assert page.locator('#hiddenLineScale').input_value()=='2'
-        assert page.locator('#jobPanel').evaluate('(el) => !el.open')
-        assert page.locator('#jobProgress').is_hidden()
-        assert page.locator('#jobActions').is_hidden()
-        assert page.locator('.eyebrow').count()==0
-        assert page.locator('.table-wrap').bounding_box()['height'] < 180
-        assert page.locator('#pdfBtn').inner_text().startswith('输出 PDF')
-        assert page.locator('#dxfBtn').inner_text().startswith('输出 DXF')
-        assert page.locator('.project-checks input[type=checkbox]').count()==5
-        assert page.locator('#grid .delete').inner_text()=='×'
-        assert page.locator('#grid tbody td').first.evaluate('(el) => getComputedStyle(el).textAlign')=='center'
-        if name=='mobile':
-            assert page.locator('#grid').bounding_box()['width'] < 1250
-            assert page.locator('#grid tbody td').first.bounding_box()['width'] <= 36
-        assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'body overflows viewport'
-        # Verify what the controls submit without performing geometry jobs here.
+        page.on('pageerror',lambda error:errors.append(str(error)))
+        page.goto(BASE,wait_until='networkidle')
+        expect(page.locator('#accessDialog')).to_be_visible()
+        assert page.locator('.topbar input').count()==0
+        assert page.locator('.topbar #connectBtn').count()==0
+        page.locator('#apiToken').fill('invalid-test-key')
+        page.locator('#accessSubmit').click()
+        expect(page.locator('#accessError')).to_be_visible()
+        page.locator('#apiToken').fill(TOKEN)
+        page.locator('#accessSubmit').click()
+        expect(page.locator('#accessDialog')).not_to_be_visible()
+        expect(page.locator('#grid tbody tr')).to_have_count(1)
+        assert page.evaluate("() => localStorage.getItem('rollerSealAccessKey.v1')") == TOKEN
+        page.reload(wait_until='networkidle')
+        expect(page.locator('#grid tbody tr')).to_have_count(1)
+        expect(page.locator('#accessDialog')).not_to_be_visible()
+        page.evaluate('() => document.fonts.ready')
+        assert page.locator('.brand').inner_text()=='标准辊密封生成'
+        assert page.locator('#hiddenLineScale,#viewGap,#combineStep,#stepName,.editor-card,.task-step-details').count()==0
+        assert page.locator('#grid th').count()==15
+        assert page.locator('#grid input[data-column="14"]').count()==0
+        assert page.locator('.project-checks input').count()==4
+        assert page.locator('#showProgressBtn').evaluate('(el)=>el.parentElement.classList.contains("topbar")')
+        assert page.locator('#showProgressBtn').evaluate('(el)=>getComputedStyle(el).position')=='static'
+        colors=[page.locator(s).evaluate('(el)=>getComputedStyle(el).backgroundColor') for s in ['#dxfBtn','#pdfBtn','#stepBtn']]
+        assert len(set(colors))==1
+        assert colors[0]!=page.locator('#validateBtn').evaluate('(el)=>getComputedStyle(el).backgroundColor')
+        assert page.evaluate('() => document.documentElement.scrollWidth <= innerWidth')
+        panel=page.locator('.table-panel').bounding_box()
+        assert panel['y']+panel['height']<=height
+        if width<=800:
+            assert page.locator('.table-wrap').bounding_box()['height']<=221
+            assert page.locator('.table-footer').is_hidden()
+            action=page.locator('#grid tbody td').first.bounding_box()['width']
+            assert 45<=action<=49
+            number=page.locator('#grid input[data-column="1"]')
+            assert number.evaluate('(el)=>getComputedStyle(el).fontSize')=='16px'
+            assert number.bounding_box()['width']<=58
+            assert page.locator('#grid').evaluate('(el)=>getComputedStyle(el).touchAction')=='manipulation'
+        # Parameter validation is independent of task progress.
+        page.locator('#validateBtn').click()
+        expect(page.locator('#validationDialog')).to_be_visible()
+        assert page.locator('#validationTitle').inner_text()=='没有错误'
+        expect(page.locator('#progressDialog')).not_to_be_visible()
+        expect(page.locator('#validationDialog')).not_to_be_visible(timeout=4000)
+        number=page.locator('#grid input[data-column="1"]')
+        number.fill('0')
+        page.locator('#validateBtn').click()
+        expect(page.locator('#validationDialog')).to_be_visible()
+        assert page.locator('#validationTitle').inner_text()=='检查未通过'
+        page.wait_for_timeout(1800)
+        assert page.locator('#validationDialog').is_visible()
+        page.locator('#validationDialog button').click()
+        number.fill('5')
+        # Imported optional dimensions stay in the submitted data, but are not inputs.
+        page.evaluate("() => {state.rows[0][14]='19';state.rows[0][15]='10';}")
         requests=[]
+        snapshot={}
         def capture(route):
             requests.append(route.request.post_data_json)
-            route.fulfill(status=400,content_type='application/json',body='{"error":"UI request check"}')
+            route.fulfill(content_type='application/json',body='{"id":"ui-check"}')
         page.route('**/api/jobs',capture)
-        for checkbox in page.locator('.project-checks input').all():
-            checkbox.check()
+        page.route('**/api/jobs/ui-check',lambda route:route.fulfill(content_type='application/json',body=json.dumps(snapshot)))
+        for checkbox in page.locator('.project-checks input').all():checkbox.check()
         for selector,kind in [('#dxfBtn','dxf'),('#pdfBtn','pdf'),('#stepBtn','project')]:
+            snapshot.clear()
+            snapshot.update(status='running',message='正在渲染 1 页 A4 PDF…',completed=1,downloadable=False,logs=['正在生成 1/1：1','正在从当前模型提取三视图 1：1','已导出 1：SolidCraft + STEP','正在将 1 张加工图排版到一个 DXF…','正在渲染 1 页 A4 PDF…'])
             page.locator(selector).click()
-            expect(page.locator("#stepBtn")).to_be_enabled()
-            assert page.locator('#progressDialog').is_visible()
-            box=page.locator('#progressDialog').bounding_box()
-            assert box['x'] >= 0 and box['y'] >= 0
-            assert box['x']+box['width'] <= width and box['y']+box['height'] <= height
+            expect(page.locator('#progressDialog')).to_be_visible()
+            expect(page.locator('#jobMessage')).to_contain_text('正在渲染')
+            assert page.locator('#jobProgress').evaluate('(el)=>el.value<el.max')
+            assert page.locator('.task-status-line').is_hidden()
+            assert page.locator('#showProgressBtn').is_hidden()
+            assert not page.locator('.log-details').evaluate('(el)=>el.open')
+            body=requests[-1]
+            assert body['outputFormat']==kind and body['combineStep'] is False
+            assert body['hiddenLineScale']==2 and body['viewGap']==60
+            assert body['rows'][0][14:16]==['19','10']
+            for key in ['exportDxf','exportStep','exportPdf','exportCsv']:assert body[key]==(kind=='project')
             page.get_by_role('button',name='关闭任务进度弹窗').click()
-            assert page.locator('#progressDialog').is_hidden()
-            reopen=page.locator('#showProgressBtn')
-            assert reopen.is_visible()
-            rb=reopen.bounding_box()
-            assert 0<=rb['x'] and 0<=rb['y'] and rb['x']+rb['width']<=width and rb['y']+rb['height']<=height
-            assert reopen.evaluate('(el)=>getComputedStyle(el).position')=='fixed'
             page.locator('#showProgressBtn').click()
-            assert page.locator('#progressDialog').is_visible()
-            page.keyboard.press('Escape')
-            assert page.locator('#progressDialog').is_hidden()
-            assert requests[-1]['outputFormat']==kind
-            for key in ['exportDxf','exportStep','combineStep','exportPdf','exportCsv']:
-                assert requests[-1][key] == (kind=='project')
-        for checkbox in page.locator('.project-checks input').all():
-            checkbox.uncheck()
-        count=len(requests)
-        page.locator('#stepBtn').click()
-        assert page.locator('#log').inner_text().endswith('请至少勾选一项项目输出。')
-        assert len(requests)==count
-        page.get_by_role('button',name='关闭任务进度弹窗').click()
-        page.locator('#jobPanel').evaluate('(el) => el.open=false')
+            expect(page.locator('#progressDialog')).to_be_visible()
+            snapshot.update(status='completed',message='生成完成',downloadable=True,contentType='application/zip',downloadName='result.zip')
+            expect(page.locator('#downloadBtn')).to_be_visible()
+            assert page.locator('#jobProgress').evaluate('(el)=>el.value===el.max')
+            box=page.locator('#progressDialog').bounding_box()
+            assert box['x']>=0 and box['y']>=0 and box['x']+box['width']<=width and box['y']+box['height']<=height
+            page.get_by_role('button',name='关闭任务进度弹窗').click()
         page.locator('#addBtn').click()
-        assert page.locator('#grid tbody tr').count()==2
+        expect(page.locator('#grid tbody tr')).to_have_count(2)
         page.locator('#grid .delete').first.click()
-        assert page.locator('#grid tbody tr').count()==1
-        page.locator('#showProgressBtn').click()
+        expect(page.locator('#grid tbody tr')).to_have_count(1)
         page.screenshot(path=f'../../work/ui-{name}.png',full_page=True)
         assert not errors,errors
         page.close()
     browser.close()
-print('Desktop/mobile UI, hidden-line default 2, separate export actions and viewport checks passed.')
-
-
+print('PASS: key dialog/persistence, compact inputs, header, output actions, validation feedback, task stages and viewport limits.')

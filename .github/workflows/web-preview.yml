@@ -148,7 +148,7 @@ jobs:
           done
           grep -q '"columns"' bootstrap.json
           grep -q '"solidCraft":true' bootstrap.json
-          curl --fail --silent http://127.0.0.1:5080/ | grep -q '标准辊密封批量生成'
+          curl --fail --silent http://127.0.0.1:5080/ | grep -q '标准辊密封生成'
           cat >job.json <<'JSON'
           {"rows":[["1","5","90","120","105","200","1","1","0","0","0","0","30","30","","","",""]],"combineStep":false,"exportCsv":true,"exportDxf":true,"exportPdf":false}
           JSON
@@ -286,6 +286,7 @@ jobs:
           else
             gh release create "$tag" "${files[@]}" --target "$GITHUB_SHA" --title "$title" --notes-file dist/release-notes.md --prerelease -R "$repo"
           fi
+
 
 
 
