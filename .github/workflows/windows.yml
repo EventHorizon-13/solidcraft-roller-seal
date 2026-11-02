@@ -1,4 +1,4 @@
-name: Build and release 2.4.10 transition
+name: Build and release 2.4.11
 on:
   workflow_dispatch:
   push:
@@ -35,7 +35,7 @@ jobs:
       - name: Set release identity
         shell: pwsh
         run: |
-          "BUILD_VERSION=2.4.10" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "BUILD_VERSION=2.4.11" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           $date = [TimeZoneInfo]::ConvertTimeBySystemTimeZoneId([DateTimeOffset]::UtcNow, 'China Standard Time').ToString('yyyy-MM-dd HH:mm:ss')
           "BUILD_DATE=$date" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Verify semicircle and core regression checks
@@ -137,7 +137,7 @@ jobs:
       - name: Set release identity
         shell: bash
         run: |
-          echo "BUILD_VERSION=2.4.10" >> "$GITHUB_ENV"
+          echo "BUILD_VERSION=2.4.11" >> "$GITHUB_ENV"
           echo "BUILD_DATE=$(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M:%S')" >> "$GITHUB_ENV"
       - name: Install open-source PDF renderer
         run: npm install --prefix tools/pdf-export --ignore-scripts --no-audit --no-fund
@@ -210,17 +210,17 @@ jobs:
             printf 'Expected four architecture packages, found %s\n' "${#files[@]}"
             exit 1
           fi
-          tag="win-2.4.10"
-          title="标准辊密封批量生成 2.4.10"
+          tag="v2.4.11"
+          title="v2.4.11"
           cat > dist/release-notes.md <<EOF
-          标准辊密封批量生成 2.4.10 正式版（发布标签兼容迁移过渡版）。
+          ## v2.4.11
 
-          - 更新检查改为按当前平台安装包从 Releases 中选择，不再依赖全局 Latest。
-          - 同时识别 win-* 与 v* 版本标签，Web 发布不会干扰 Windows 更新。
-          - 本版继续使用 win-2.4.10 作为兼容过渡标签；从 2.4.11 起改用 v2.4.11。
-          - 保留 2.4.9 的自定义文件名默认值和已有建模、工程图功能。
-          - Windows 桌面版与 Linux CLI 均提供 amd64、arm64 包。
-          - PDF 仍需用户有权使用的图框和字体；正式加工前请核对实际图纸。
+          ### 变更
+
+          - 桌面工具栏移除“复制选中”按钮及其对应行为。
+          - Windows/Linux 正式发布标签改用 `v*`；更新器继续兼容历史 `win-*` 标签。
+
+          **完整变更**：https://github.com/EventHorizon-13/solidcraft-roller-seal/compare/win-2.4.10...v2.4.11
 
           源码提交：$GITHUB_SHA
           EOF

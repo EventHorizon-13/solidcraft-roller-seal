@@ -2,11 +2,16 @@
 
 面向标准辊密封零件的参数化建模与工程出图工具。通过参数表或 CSV 批量管理尺寸，自动调用随包提供的 SolidCraft CLI，生成三维模型和加工图文件。
 
-**版本：2.4.10**
+**版本：2.4.11**
 
 **支持平台：** Windows 10/11（x64、ARM64 桌面版）；Linux（amd64、ARM64 命令行版）。目前没有 macOS 桌面版。
 
 [下载最新正式版](https://github.com/EventHorizon-13/solidcraft-roller-seal/releases/latest) · [查看所有版本](https://github.com/EventHorizon-13/solidcraft-roller-seal/releases) · [查看构建与 UI 测试](https://github.com/EventHorizon-13/solidcraft-roller-seal/actions)
+
+## 2.4.11 更新日志
+
+- 桌面工具栏移除“复制选中”按钮及其对应行为。
+- Windows/Linux 桌面与 CLI 正式发布标签改用 `v2.4.11`；更新器继续兼容历史 `win-*` 标签。
 
 ## 2.4.10 更新说明
 

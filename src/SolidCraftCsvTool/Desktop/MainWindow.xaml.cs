@@ -146,16 +146,6 @@ public partial class MainWindow : Window
         if(dialog.ShowDialog(this)==true){output.Text=dialog.FolderName;SaveSettings();}
     });
     void AddRowClick(object sender,RoutedEventArgs e)=>Guard(()=>RunUndoable(()=>AddRow(ModelRules.DefaultRow((table.Rows.Count+1).ToString()))));
-    void DuplicateSelected(object sender,RoutedEventArgs e)=>Guard(()=>RunUndoable(()=>
-    {
-        var selected=GetSelectedRows();var used=GetRows().Select(r=>r[0]).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach(var row in selected)
-        {
-            var copy=ModelRules.Columns.Select(c=>ModelRules.Flags.Contains(c)?(row[c] is true?"1":"0"):Convert.ToString(row[c])??"").ToArray();
-            string stem=copy[0]+"_副本",candidate=stem;int suffix=2;while(used.Contains(candidate))candidate=stem+suffix++;
-            copy[0]=candidate;used.Add(candidate);AddRow(copy);
-        }
-    }));
     void DeleteSelected(object sender,RoutedEventArgs e)=>Guard(()=>RunUndoable(()=>{foreach(var row in GetSelectedRows())table.Rows.Remove(row);}));
     void CheckRows(object sender,RoutedEventArgs e)=>Guard(()=>SetStatus($"{ModelRules.Validate(GetRows()).Count} 行参数检查通过"));
     void ConfigureDrawing(object sender,RoutedEventArgs e)=>Guard(()=>
@@ -320,6 +310,8 @@ public partial class MainWindow : Window
         if(grid.Columns.Count!=ModelRules.Columns.Length||table.Rows.Count<1)throw new InvalidOperationException("参数表初始化失败。");
         if(dxfBase.Text!=OutputNames.DefaultCustomBase(displayedStamp)||stepBase.Text!=OutputNames.DefaultCustomBase(displayedStamp))
             throw new InvalidOperationException("自定义文件名没有使用当天的辊密封_MMDD_默认值。");
+        if(Tools.Children.OfType<Button>().Any(button=>Equals(button.Content,"复制选中")))
+            throw new InvalidOperationException("参数工具栏仍显示已移除的“复制选中”操作。");
         ModelRules.Validate(GetRows());
         if(log.ActualHeight<85)throw new InvalidOperationException("日志窗口默认高度过小。");
         if(!run.IsEnabled||!runDxf.IsEnabled||stop.IsEnabled)throw new InvalidOperationException("初始按钮状态不正确。");

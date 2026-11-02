@@ -33,7 +33,6 @@
     <Button Content="导入 CSV" Click="ImportCsv" Padding="10,5" Margin="0,0,6,0"/>
     <Button Content="导出 CSV" Click="ExportCsv" Padding="10,5" Margin="0,0,6,0"/>
     <Button Content="新增" Click="AddRowClick" Padding="10,5" Margin="0,0,6,0"/>
-    <Button Content="复制选中" Click="DuplicateSelected" Padding="10,5" Margin="0,0,6,0"/>
     <Button Content="删除选中" Click="DeleteSelected" Padding="10,5" Margin="0,0,6,0"/>
     <Button Content="检查参数" Click="CheckRows" Padding="10,5" Margin="0,0,6,0"/>
     <Button Content="STEP 合并出图 DXF" Click="StepDrawingClick" Padding="10,5" Margin="0,0,6,0"/>
