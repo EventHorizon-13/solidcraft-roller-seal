@@ -1,4 +1,4 @@
-name: Web Linux preview
+name: Web Linux server
 
 on:
   workflow_dispatch:
@@ -206,7 +206,7 @@ jobs:
           rm -rf dist/app/WebData
           rm -f dist/app/*smoke.log dist/app/bootstrap.json dist/app/job*.json dist/app/result.zip
 
-      - name: Package preview
+      - name: Package server distribution
         shell: bash
         run: |
           set -euo pipefail
@@ -220,7 +220,7 @@ jobs:
 
   release:
     needs: build
-    if: github.event_name == 'push' && contains(github.event.head_commit.message, 'Release Web preview 0.1.11')
+    if: github.event_name == 'push' && github.event.head_commit.message == 'Release Web server 1.0.0'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -231,42 +231,34 @@ jobs:
           path: dist/release-assets
           merge-multiple: true
 
-      - name: Publish Web preview pre-release
+      - name: Publish Web server stable release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           files=(dist/release-assets/StandardRollerSeal-web-linux-*.tar.gz)
-          if [ "${#files[@]}" -ne 2 ]; then
-            printf 'Expected two Web preview packages, found %s\n' "${#files[@]}"
+          test "${#files[@]}" -eq 2
+          repo="EventHorizon-13/solidcraft-roller-seal"
+          tag="web-1.0.0"
+          title="标准辊密封生成 Web 1.0.0 · 服务器计算正式版"
+          if gh release view "$tag" -R "$repo" >/dev/null 2>&1; then
+            echo "Release already exists; refusing to replace stable assets." >&2
             exit 1
           fi
-          tag="web-0.1.11-preview"
-          title="标准辊密封批量生成 Web 0.1.11 Preview"
           cat > dist/release-notes.md <<'EOF'
-          标准辊密封生成 Web 0.1.11 Preview，Linux amd64/arm64。
-
-          - 未启用斜边时，斜边 Y/Z 允许空白；启用时要求有效正数。
-          - 同步当前参数表、快速 DXF/PDF 与四项项目输出、简化输入和统一按钮样式。
-          - API Key 弹窗输入与浏览器记忆，失效直接提示；公开包沿用原密钥鉴权策略。
-          - 任务进度按实际阶段更新，完成前不满格；参数检查成功短暂提示、错误手动关闭。
-          - 手机列宽、输入字号/缩放、表格视口高度和顶栏卡片布局优化。
-          - 表头、输入区和空白区分层，按钮深蓝底白字；控件与面板采用4px圆角，弹窗6px、复选框3px，兼顾紧凑布局和柔和边缘。
-          - UI 与接口检查通过后发布；本包不替代 Windows 正式版。
-
+          标准辊密封生成 Web 1.0.0，服务器计算正式版。
+          
+          - 提供 Linux amd64、arm64 自包含部署包，内置 SolidCraft CLI、PDF 渲染运行时及开源字体。
+          - 建模、STEP、DXF 和 PDF 导出在服务器执行；浏览器只加载轻量网页，无需下载 WebAssembly 计算引擎。
+          - 支持 CSV 参数导入、快速 DXF/PDF 下载，以及包含 DXF、STEP、PDF、列表 CSV 的项目 ZIP。
+          - 统一浅深色工程界面；手机和宽屏表格按剩余可见高度伸展，标题旁显示前端构建号和后端版本。
+          - 密钥弹窗与浏览器记忆、任务实际阶段进度、独立参数检查反馈。
+          - 公开部署使用 X-RollerSeal-Token 鉴权；未配置令牌时只允许回环访问。
+          - 升级前备份并保留 WebData。解压后运行 standard-roller-seal-web，部署步骤见包内 README。
+          
+          本次发布针对服务器计算 Web 版；Windows 桌面版沿用 win-* 版本系列。
+          
           EOF
-          repo="EventHorizon-13/solidcraft-roller-seal"
-          if gh release view "$tag" -R "$repo" >/dev/null 2>&1; then
-            gh release upload "$tag" "${files[@]}" --clobber -R "$repo"
-            gh release edit "$tag" --title "$title" --notes-file dist/release-notes.md --prerelease -R "$repo"
-            # Keep this preview tag in sync with its replaceable build assets.
-            gh api --method PATCH "repos/$repo/git/refs/tags/$tag" -f sha="$GITHUB_SHA" -F force=true
-          else
-            gh release create "$tag" "${files[@]}" --target "$GITHUB_SHA" --title "$title" --notes-file dist/release-notes.md --prerelease -R "$repo"
-          fi
-
-
-
-
-
+          gh release create "$tag" "${files[@]}" --target "$GITHUB_SHA" --title "$title" --notes-file dist/release-notes.md --draft -R "$repo"
+          gh release edit "$tag" --draft=false --prerelease=false --latest -R "$repo"

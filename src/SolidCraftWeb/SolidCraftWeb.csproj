@@ -5,8 +5,8 @@
     <Nullable>enable</Nullable>
     <AssemblyName>standard-roller-seal-web</AssemblyName>
     <RootNamespace>SolidCraftCsvTool</RootNamespace>
-    <Version>0.1.11-preview</Version>
-    <Product>标准辊密封批量生成 Web Preview</Product>
+    <Version>1.0.0</Version>
+    <Product>标准辊密封生成 Web</Product>
   </PropertyGroup>
   <ItemGroup>
     <Content Include="../../模板/标准辊密封.solidcraft" Link="模板/标准辊密封.solidcraft" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
