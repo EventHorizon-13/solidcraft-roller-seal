@@ -2,11 +2,17 @@
 
 面向标准辊密封零件的参数化建模与工程出图工具。通过参数表或 CSV 批量管理尺寸，自动调用随包提供的 SolidCraft CLI，生成三维模型和加工图文件。
 
-**版本：2.4.8**
+**版本：2.4.9**
 
 **支持平台：** Windows 10/11（x64、ARM64 桌面版）；Linux（amd64、ARM64 命令行版）。目前没有 macOS 桌面版。
 
 [下载最新正式版](https://github.com/EventHorizon-13/solidcraft-roller-seal/releases/latest) · [查看所有版本](https://github.com/EventHorizon-13/solidcraft-roller-seal/releases) · [查看构建与 UI 测试](https://github.com/EventHorizon-13/solidcraft-roller-seal/actions)
+
+## 2.4.9 更新说明
+
+- Windows 桌面版的“DXF 文件名”和“组合 STEP 名”默认使用 `辊密封_MMDD_`，其中 `MMDD` 自动取当天日期，可直接在末尾下划线后填写自定义后缀。
+- 单件模型和 STEP 仍使用 `辊密封_MMDD_编号`，CSV 快照与 Linux CLI 命名规则不变。
+- 增加默认名称与日期切换的回归检查。
 
 ## 2.4.8 更新说明
 
@@ -108,12 +114,12 @@
 | --- | --- |
 | `辊密封_MMDD_编号.solidcraft` | 单件原生模型 |
 | `辊密封_MMDD_编号.step` | 单件 STEP 模型（普通 STEP 导出时生成；DXF-only 模式默认跳过） |
-| `辊密封_MMDD.step` | 组合 STEP（可关闭、可自定义文件名） |
-| `辊密封_MMDD.dxf` | 汇总 DXF 加工图 |
-| `辊密封_MMDD.pdf` | 多页 A4 横向加工图 PDF |
+| `辊密封_MMDD_.step` | 组合 STEP（可关闭、可自定义文件名） |
+| `辊密封_MMDD_.dxf` | 汇总 DXF 加工图（可自定义文件名） |
+| `辊密封_MMDD_.pdf` | 多页 A4 横向加工图 PDF |
 | `辊密封_MMDD.csv` | 当前任务参数快照（可关闭） |
 
-`MMDD` 是生成当天的月日。默认名称会自动更新日期；合并 STEP、CSV 导出、自定义名称、窗口宽高等设置会自动记住。
+`MMDD` 是生成当天的月日。Windows 版自定义文件名默认采用 `辊密封_MMDD_`，日期变化时会自动更新；合并 STEP、CSV 导出、自定义名称、窗口宽高等设置会自动记住。
 
 ## CSV 参数说明
 

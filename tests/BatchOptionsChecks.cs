@@ -9,6 +9,7 @@ internal static class BatchOptionsChecks
     {
         Directory.CreateDirectory(directory);
         if(OutputNames.FileName(null,".dxf","1027")!="辊密封_1027.dxf" ||
+            OutputNames.DefaultCustomBase("1027")!="辊密封_1027_" ||
             OutputNames.FileName("定制图.DXF",".dxf","1027")!="定制图.dxf" ||
             OutputNames.Part("A01","1027")!="辊密封_1027_A01")throw new Exception("Daily/default/custom file names are incorrect.");
         foreach(string invalid in new[]{"../escape","CON","trailing.","a/b"})

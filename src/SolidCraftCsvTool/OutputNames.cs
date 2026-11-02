@@ -7,6 +7,7 @@ public static class OutputNames
 {
     public static string Stamp => DateTime.Now.ToString("MMdd",CultureInfo.InvariantCulture);
     public static string DefaultBase(string? stamp=null)=>"辊密封_"+(stamp??Stamp);
+    public static string DefaultCustomBase(string? stamp=null)=>DefaultBase(stamp)+"_";
     public static string FileName(string? value,string extension,string? stamp=null)
     {
         string name=(value??"").Trim();

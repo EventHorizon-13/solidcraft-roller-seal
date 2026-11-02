@@ -31,7 +31,7 @@ public partial class MainWindow : Window
         Width=RestoreDimension(settings.windowWidth,MinWidth,SystemParameters.WorkArea.Width,1360);
         Height=RestoreDimension(settings.windowHeight,MinHeight,SystemParameters.WorkArea.Height,860);
         Title=AppBuildInfo.WindowTitle;
-        output.Text=settings.output;dxfBase.Text=settings.dxfBase??OutputNames.DefaultBase();stepBase.Text=settings.stepBase??OutputNames.DefaultBase();
+        output.Text=settings.output;dxfBase.Text=settings.dxfBase??OutputNames.DefaultCustomBase();stepBase.Text=settings.stepBase??OutputNames.DefaultCustomBase();
         combined.IsChecked=settings.combined;taskCsv.IsChecked=settings.taskCsv;overwrite.IsChecked=settings.overwrite;
         openDxf.IsChecked=settings.openDxf;exportPdf.IsChecked=settings.exportPdf;
         foreach(string name in ModelRules.Columns)
@@ -103,16 +103,16 @@ public partial class MainWindow : Window
     void RefreshDefaultNames()
     {
         string now=OutputNames.Stamp;
-        if(dxfBase.Text==OutputNames.DefaultBase(displayedStamp))dxfBase.Text=OutputNames.DefaultBase(now);
-        if(stepBase.Text==OutputNames.DefaultBase(displayedStamp))stepBase.Text=OutputNames.DefaultBase(now);displayedStamp=now;
+        if(dxfBase.Text==OutputNames.DefaultCustomBase(displayedStamp))dxfBase.Text=OutputNames.DefaultCustomBase(now);
+        if(stepBase.Text==OutputNames.DefaultCustomBase(displayedStamp))stepBase.Text=OutputNames.DefaultCustomBase(now);displayedStamp=now;
     }
     internal void SaveSettings()
     {
         settings.output=output.Text;settings.combined=combined.IsChecked==true;settings.taskCsv=taskCsv.IsChecked==true;
         settings.overwrite=overwrite.IsChecked==true;settings.openDxf=openDxf.IsChecked==true;settings.exportPdf=exportPdf.IsChecked==true;
         settings.themeMode=appearance.ToString();settings.drawing=drawingOptions;
-        settings.dxfBase=dxfBase.Text==OutputNames.DefaultBase(displayedStamp)?null:dxfBase.Text;
-        settings.stepBase=stepBase.Text==OutputNames.DefaultBase(displayedStamp)?null:stepBase.Text;
+        settings.dxfBase=string.IsNullOrWhiteSpace(dxfBase.Text)||dxfBase.Text==OutputNames.DefaultCustomBase(displayedStamp)?null:dxfBase.Text;
+        settings.stepBase=string.IsNullOrWhiteSpace(stepBase.Text)||stepBase.Text==OutputNames.DefaultCustomBase(displayedStamp)?null:stepBase.Text;
         double savedWidth=WindowState==WindowState.Normal?ActualWidth:RestoreBounds.Width;
         double savedHeight=WindowState==WindowState.Normal?ActualHeight:RestoreBounds.Height;
         if(double.IsFinite(savedWidth)&&savedWidth>=MinWidth)settings.windowWidth=savedWidth;
@@ -181,6 +181,8 @@ public partial class MainWindow : Window
         var messages=new List<string>();for(Exception? current=ex;current!=null;current=current.InnerException)messages.Add(current.GetType().Name+": "+current.Message);
         return string.Join("\n原因：",messages.Distinct());
     }
+    static string CustomFileName(TextBox field,string extension,string stamp)=>
+        OutputNames.FileName(string.IsNullOrWhiteSpace(field.Text)?OutputNames.DefaultCustomBase(stamp):field.Text,extension,stamp);
     Task EnsureEngineAsync(CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
@@ -197,8 +199,8 @@ public partial class MainWindow : Window
             ResolveLocalTemplates();RefreshDefaultNames();
             var csvRows=GetRows();var rows = ModelRules.Validate(csvRows);
             string stamp=OutputNames.Stamp;
-            string stepName=OutputNames.FileName(stepBase.Text,".step",stamp);
-            string dxfName=OutputNames.FileName(dxfBase.Text,".dxf",stamp);
+            string stepName=CustomFileName(stepBase,".step",stamp);
+            string dxfName=CustomFileName(dxfBase,".dxf",stamp);
             string templateFile = nativeTemplatePath.Trim(), outputFolder = output.Text.Trim();
             if (!File.Exists(templateFile) || !string.Equals(Path.GetExtension(templateFile), ".solidcraft", StringComparison.OrdinalIgnoreCase)) throw new IOException("内置标准模型缺失，请完整解压安装包中的“模板”文件夹。");
             if (outputFolder.Length == 0) throw new IOException("请选择输出文件夹。");
@@ -248,7 +250,7 @@ public partial class MainWindow : Window
             var target = Path.GetFullPath(outputFolder.FolderName);
             cancellation = new(); SetRunning(true); progressBar.Maximum = files.Length; progressBar.Value = 0;
             Progress<ExportProgress> progress = new(p => { SetStatus(p.Message); progressBar.Value = Math.Min(progressBar.Maximum, p.Completed); if (p.Log) Log(p.Message); });
-            var drawing = drawingOptions with{OutputFileName=OutputNames.FileName(dxfBase.Text,".dxf"),OverwriteOutput=(overwrite.IsChecked==true)};
+            var drawing = drawingOptions with{OutputFileName=CustomFileName(dxfBase,".dxf",OutputNames.Stamp),OverwriteOutput=(overwrite.IsChecked==true)};
             bool createPdf=(exportPdf.IsChecked==true);
             if(createPdf)
             {
@@ -316,6 +318,8 @@ public partial class MainWindow : Window
     internal void VerifyUi()
     {
         if(grid.Columns.Count!=ModelRules.Columns.Length||table.Rows.Count<1)throw new InvalidOperationException("参数表初始化失败。");
+        if(dxfBase.Text!=OutputNames.DefaultCustomBase(displayedStamp)||stepBase.Text!=OutputNames.DefaultCustomBase(displayedStamp))
+            throw new InvalidOperationException("自定义文件名没有使用当天的辊密封_MMDD_默认值。");
         ModelRules.Validate(GetRows());
         if(log.ActualHeight<85)throw new InvalidOperationException("日志窗口默认高度过小。");
         if(!run.IsEnabled||!runDxf.IsEnabled||stop.IsEnabled)throw new InvalidOperationException("初始按钮状态不正确。");

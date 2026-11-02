@@ -1,4 +1,4 @@
-name: Build and release 2.4.8
+name: Build and release 2.4.9
 on:
   workflow_dispatch:
   push:
@@ -35,7 +35,7 @@ jobs:
       - name: Set release identity
         shell: pwsh
         run: |
-          "BUILD_VERSION=2.4.8" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "BUILD_VERSION=2.4.9" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           $date = [TimeZoneInfo]::ConvertTimeBySystemTimeZoneId([DateTimeOffset]::UtcNow, 'China Standard Time').ToString('yyyy-MM-dd HH:mm:ss')
           "BUILD_DATE=$date" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Verify semicircle and core regression checks
@@ -137,7 +137,7 @@ jobs:
       - name: Set release identity
         shell: bash
         run: |
-          echo "BUILD_VERSION=2.4.8" >> "$GITHUB_ENV"
+          echo "BUILD_VERSION=2.4.9" >> "$GITHUB_ENV"
           echo "BUILD_DATE=$(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M:%S')" >> "$GITHUB_ENV"
       - name: Install open-source PDF renderer
         run: npm install --prefix tools/pdf-export --ignore-scripts --no-audit --no-fund
@@ -210,15 +210,15 @@ jobs:
             printf 'Expected four architecture packages, found %s\n' "${#files[@]}"
             exit 1
           fi
-          tag="win-2.4.8"
-          title="标准辊密封批量生成 2.4.8"
+          tag="win-2.4.9"
+          title="标准辊密封批量生成 2.4.9"
           cat > dist/release-notes.md <<EOF
-          标准辊密封批量生成 2.4.8 正式版。
+          标准辊密封批量生成 2.4.9 正式版。
 
-          - 左右斜边均未勾选时，斜边 Y/Z 可单独或同时留空，内部采用标准默认值。
-          - 任意一侧启用斜边时，Y/Z 仍须填写有效正数；非法数值、负值等检查保留。
-          - 桌面编辑、CSV 导入和 Linux CLI 复用同一参数校验，附空白尺寸正反例回归检查。
-          - 保留 2.4.7 已有建模、工程图和桌面功能，不合入未完成的实验修复。
+          - Windows 桌面版自定义 DXF 和组合 STEP 文件名默认使用“辊密封_MMDD_”，日期自动取当天。
+          - 单件模型与 STEP 继续使用“辊密封_MMDD_编号”，CSV 快照和 Linux CLI 命名不变。
+          - 增加默认名称、日期更新与 Windows 界面检查。
+          - 保留 2.4.8 已有建模、工程图和桌面功能。
           - Windows 桌面版与 Linux CLI 均提供 amd64、arm64 包。
           - PDF 仍需用户有权使用的图框和字体；正式加工前请核对实际图纸。
 
