@@ -20,3 +20,5 @@
 @media(max-width:800px){.client-workspace .work-area{display:block}.client-workspace .workspace-heading{grid-row:auto}.client-workspace .table-panel{grid-row:auto}.client-workspace .job{grid-row:auto}.client-workspace .craft-panel{grid-row:auto}#solidCraftFrame{height:62vh;min-height:420px}}
 @media(max-width:480px){.client-workspace{padding:18px 12px}.client-workspace .craft-panel{padding:10px}#solidCraftFrame{height:58vh;min-height:360px}}
 .download-link{position:fixed;left:-10000px;top:0}
+
+.preview-host{position:relative;overflow:hidden}.preview-host.is-computing #solidCraftFrame{visibility:hidden}.preview-working{position:absolute;inset:0;display:grid;place-items:center;margin:0;padding:16px;color:var(--muted);font-size:12px;text-align:center;background:var(--panel)}

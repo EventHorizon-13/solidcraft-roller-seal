@@ -20,6 +20,7 @@ const {spawn}=require('child_process');
  await page.goto('http://127.0.0.1:8765/roller-seal/',{waitUntil:'domcontentloaded'});
  await page.waitForFunction(()=>Boolean(state.engine) && !document.querySelector('#stepBtn').disabled,{},{timeout:240000}).catch(async e=>{console.log(await page.locator('#jobMessage').textContent());await page.screenshot({path:'browser-result-failed.png',fullPage:true});throw e;});
  console.log('Browser engine ready');
+ if(!await page.evaluate(()=>state.previewMode && new URL(document.querySelector('#solidCraftFrame').contentWindow.location.href).searchParams.has('embed')))throw Error('Initial preview is not compact');
  for(let n=0;n<2;n++){
   if(n===1)await page.setViewportSize({width:390,height:844});
   const downloadPromise=page.waitForEvent('download',{timeout:240000});
@@ -31,6 +32,9 @@ const {spawn}=require('child_process');
   const b=fs.readFileSync('browser-result-'+n+'.zip');
   if(b.readUInt32LE(0)!==0x04034b50)throw Error('Not a ZIP');
   console.log('Generation',n+1,'downloaded',b.length);
+  await page.waitForFunction(()=>!state.busy && state.engine && !document.querySelector('#stepBtn').disabled,{},{timeout:180000});
+  if(!await page.evaluate(()=>state.previewMode && new URL(document.querySelector('#solidCraftFrame').contentWindow.location.href).searchParams.has('embed')))throw Error('Result preview is not compact');
+  if(await page.locator('#previewHost').getAttribute('aria-busy')!=='false')throw Error('Preview overlay was not cleared');
   const box=await page.locator('#progressDialog').boundingBox(), viewport=page.viewportSize();
   if(box.x<0||box.y<0||box.x+box.width>viewport.width||box.y+box.height>viewport.height)throw Error('Dialog overflows viewport');
   await page.screenshot({path:'browser-result-dialog-'+n+'.png',fullPage:true});

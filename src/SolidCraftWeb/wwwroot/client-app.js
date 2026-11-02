@@ -22,9 +22,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const template = new URL("./client-template.solidcraft", location.href).href;
   const url = new URL("./solidcraft/", location.href);
   url.searchParams.set("open", template);
-  // Exporting requires normal mode: embed mode disables files_tick/OPFS flushing.
+  // Normal mode is used only while exporting: embed mode does not flush OPFS.
   state.engineUrl = url.toString();
-  el.solidCraftFrame.src = state.engineUrl;
+  url.searchParams.set("embed", "");
+  state.previewMode = true;
+  state.needsReset = true;
+  el.solidCraftFrame.src = url.toString();
   waitForEngine().catch(error => setConnection("SolidCraft 加载失败：" + error.message));
 });
 
@@ -197,9 +200,9 @@ function setBusy(value) {
   state.busy = value; el.stepBtn.disabled = value || !state.engine;
   el.addBtn.disabled = value; el.importBtn.disabled = value; el.validateBtn.disabled = value;
 }
-async function waitForEngine() {
+async function waitForEngine(quiet = false) {
   setConnection("正在加载 SolidCraft WebAssembly…");
-  el.jobMessage.textContent = "浏览器正在下载并启动 SolidCraft 引擎；首次加载可能需要一些时间。";
+  if (!quiet) el.jobMessage.textContent = "浏览器正在下载并启动 SolidCraft 引擎；首次加载可能需要一些时间。";
   const until = Date.now() + 180000;
   while (Date.now() < until) {
     try {
@@ -207,9 +210,9 @@ async function waitForEngine() {
       if (api && typeof api.execute === "function" && typeof api.request === "function") {
         const defaults = await readTemplateDefaults(api, 60000);
         state.engine = api;
-        state.defaults = defaults;
+        if (!state.defaults) state.defaults = defaults;
         setConnection("SolidCraft 已就绪 · 本机计算");
-        el.jobMessage.textContent = "建模、校验与 STEP 导出均在此浏览器完成。";
+        if (!quiet) el.jobMessage.textContent = "建模、校验与 STEP 导出均在此浏览器完成。";
         setBusy(state.busy);
         return;
       }
@@ -373,17 +376,14 @@ async function startGeneration() {
   beginTaskTracking(rows,{step:true,combine:false,csv:el.exportCsv.checked,zip:true});
   setBusy(true);
   el.log.textContent = ""; setJob("running","所有建模和 STEP 导出均在浏览器本地执行。");
+  let resultPreview = null;
   const files = [], pieces = [], prefix = "rs-" + crypto.randomUUID().replace(/-/g,"");
   try {
-    if (state.needsReset) {
-      state.engine = null;
-      await new Promise((resolve, reject) => {
-        const frame = el.solidCraftFrame;
-        const timeout = setTimeout(() => reject(new Error("重新加载模型模板超时。")), 60000);
-        frame.addEventListener("load", () => { clearTimeout(timeout); resolve(); }, {once:true});
-        frame.src = state.engineUrl;
-      });
-      await waitForEngine();
+    setPreviewWorking(true);
+    if (state.needsReset || state.previewMode) {
+      await loadEngineFrame(state.engineUrl);
+      state.previewMode = false;
+      await waitForEngine(true);
     }
     state.needsReset = true;
     for (let i = 0; i < rows.length; i++) {
@@ -409,7 +409,9 @@ async function startGeneration() {
       taskTracker.activate("row-"+i+"-export");
       const nativeResult = await engineExecute("file.save_as",{path:nativePath,format:"container",cache:true,preview:true});
       const stepResult = await engineExecute("file.export",{path:stepPath,format:"step"});
-      files.push({name:base + ".solidcraft",bytes:await opfsBytes(nativeName, nativeResult.bytes)});
+      const nativeBytes = await opfsBytes(nativeName, nativeResult.bytes);
+      resultPreview = row.slice();
+      files.push({name:base + ".solidcraft",bytes:nativeBytes});
       files.push({name:base + ".step",bytes:await opfsBytes(stepName, stepResult.bytes)});
       pieces.push({row,base,bounds,stepPath});
 
@@ -431,7 +433,48 @@ async function startGeneration() {
     setJob("failed",error && error.message ? error.message : String(error));
     writeLog("生成失败：" + (error && error.message ? error.message : String(error)));
   } finally {
-    setBusy(false);
+    try {
+      await restoreCompactPreview(resultPreview);
+    } catch (error) {
+      state.engine = null;
+      writeLog("预览恢复失败，请刷新页面：" + error.message);
+    } finally {
+      setPreviewWorking(false);
+      setBusy(false);
+    }
+  }
+}
+function setPreviewWorking(value) {
+  const host = document.getElementById("previewHost");
+  host.classList.toggle("is-computing", value);
+  host.setAttribute("aria-busy", String(value));
+  host.querySelector(".preview-working").hidden = !value;
+}
+async function loadEngineFrame(url) {
+  state.engine = null;
+  const navigate = target => new Promise((resolve, reject) => {
+    const frame = el.solidCraftFrame;
+    const loaded = () => { clearTimeout(timer); resolve(); };
+    const timer = setTimeout(() => {
+      frame.removeEventListener("load", loaded);
+      reject(new Error("重新加载模型超时。"));
+    }, 60000);
+    frame.addEventListener("load", loaded, {once:true});
+    frame.contentWindow.location.replace(target);
+  });
+  // Release the old WASM instance before loading its replacement.
+  await navigate("about:blank");
+  await navigate(url);
+}
+async function restoreCompactPreview(row) {
+  const url = new URL(state.engineUrl);
+  url.searchParams.set("embed", "");
+  await loadEngineFrame(url.toString());
+  state.previewMode = true;
+  await waitForEngine(true);
+  if (row) {
+    await engineExecute("parameters.change", {changes:rowChanges(row)});
+    await state.engine.request("ui.view", {view:"fit", animate:false});
   }
 }
 async function submitGenerationRecord(rows,generatedAtUtc) {

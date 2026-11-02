@@ -7,13 +7,13 @@
   <meta name="theme-color" content="#eef2f0" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#141b18" media="(prefers-color-scheme: dark)">
   <title>标准辊密封生成</title>
-  <link rel="stylesheet" href="./styles.css?v=20261102-title-versions">
-  <link rel="stylesheet" href="./client.css">
+  <link rel="stylesheet" href="./styles.css?v=20261102-compact-preview">
+  <link rel="stylesheet" href="./client.css?v=20261102-compact-preview">
 </head>
 <body>
 <header class="topbar">
   <a class="brand" href="/" aria-label="标准辊密封首页"><span class="brand-title">标准辊密封生成</span>
-    <small class="build-versions" aria-label="前后端版本"><span>前端 20261102.1</span><span>后端 无（浏览器计算）</span></small></a>
+    <small class="build-versions" aria-label="前后端版本"><span>前端 20261102.2</span><span>后端 无（浏览器计算）</span></small></a>
 </header>
 <main class="workspace client-workspace">
   <section class="work-area">
@@ -50,9 +50,12 @@
   </aside>
   <section class="craft-panel panel">
     <div class="section-heading"><h2>SolidCraft 浏览器预览</h2><span class="format-mark">同源 WebAssembly</span></div>
-    <iframe id="solidCraftFrame" title="SolidCraft 浏览器内 3D 预览" loading="eager"></iframe>
+    <div class="preview-host" id="previewHost">
+      <iframe id="solidCraftFrame" title="SolidCraft 浏览器内 3D 预览" loading="eager"></iframe>
+      <p class="preview-working" role="status" hidden>正在生成模型，完成后恢复预览…</p>
+    </div>
   </section>
 </main>
-<script src="./client-app.js?v=20261102-title-versions" defer></script>
+<script src="./client-app.js?v=20261102-compact-preview" defer></script>
 </body>
 </html>
