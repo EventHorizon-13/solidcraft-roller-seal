@@ -602,14 +602,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const top = panel.getBoundingClientRect().top + window.scrollY;
     const footer = panel.querySelector('.table-footer');
     const footerHeight = footer ? footer.getBoundingClientRect().height : 0;
-    const height = tableViewportHeight(viewport, top, footerHeight, window.innerWidth <= 800);
+    const mobile = window.innerWidth <= 800;
+    const settings = document.querySelector('.settings');
+    const workspace = document.querySelector('.workspace');
+    const layout = workspace && getComputedStyle(workspace);
+    const outputHeight = mobile && settings
+      ? settings.getBoundingClientRect().height + (parseFloat(layout?.rowGap) || 0)
+      : 0;
+    const bottomSpace = mobile ? (parseFloat(layout?.paddingBottom) || 12) + 2 : 24;
+    const height = tableViewportHeight(viewport, top, footerHeight, mobile, outputHeight, bottomSpace);
     wrap.style.setProperty('--table-view-height', height + 'px');
   }
   function schedule() {
     if (!pending) { pending = true; requestAnimationFrame(update); }
   }
   const observer = new ResizeObserver(schedule);
-  for (const element of [document.querySelector('.topbar'),document.querySelector('.workspace-heading'),panel.querySelector('.table-footer')]) {
+  for (const element of [document.querySelector('.topbar'),document.querySelector('.workspace-heading'),panel.querySelector('.table-footer'),document.querySelector('.settings')]) {
     if (element) observer.observe(element);
   }
   window.addEventListener('resize', schedule);
@@ -617,8 +625,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (document.fonts) document.fonts.ready.then(schedule);
   schedule();
 });
-function tableViewportHeight(viewport, top, footer, mobile) {
-  const available = Math.max(0, viewport - footer - 24);
-  const desired = Math.max(84, viewport - top - footer - 24);
-  return Math.floor(Math.min(available, mobile ? 220 : available, desired));
+function tableViewportHeight(viewport, top, footer, mobile, output = 0, bottom = 24) {
+  const available = Math.max(0, viewport - footer - bottom);
+  const desired = Math.max(84, viewport - top - footer - output - bottom);
+  return Math.floor(Math.min(available, desired));
 }
