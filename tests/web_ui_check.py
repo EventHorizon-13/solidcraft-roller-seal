@@ -25,7 +25,10 @@ with sync_playwright() as p:
         expect(page.locator('#grid tbody tr')).to_have_count(1)
         expect(page.locator('#accessDialog')).not_to_be_visible()
         page.evaluate('() => document.fonts.ready')
-        assert page.locator('.brand').inner_text()=='标准辊密封生成'
+        assert page.locator('.brand-title').inner_text()=='标准辊密封生成'
+        assert '前端 20261102.1' in page.locator('.build-versions').inner_text()
+        backend_version = page.request.get(BASE+'api/bootstrap', headers={'X-RollerSeal-Token':TOKEN}).json()['version']
+        assert page.locator('#backendVersion').inner_text()==backend_version
         # Themes follow the system, with the requested seven dark-mode colors.
         for scheme in ['light', 'dark']:
             page.emulate_media(color_scheme=scheme)
@@ -66,7 +69,8 @@ with sync_playwright() as p:
         panel=page.locator('.table-panel').bounding_box()
         assert panel['y']+panel['height']<=height
         if width<=800:
-            assert page.locator('.table-wrap').bounding_box()['height']<=221
+            settings=page.locator('.settings').bounding_box()
+            assert settings['y']+settings['height']<=height+1
             assert page.locator('.table-footer').is_hidden()
             action=page.locator('#grid tbody td').first.bounding_box()['width']
             assert 45<=action<=49
@@ -146,3 +150,4 @@ with sync_playwright() as p:
         page.close()
     browser.close()
 print('PASS: key dialog/persistence, compact inputs, header, output actions, validation feedback, task stages and viewport limits.')
+

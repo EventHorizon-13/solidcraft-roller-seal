@@ -63,6 +63,7 @@ async function connect() {
   setConnection("正在连接…");
   try {
     const data = await api("/api/bootstrap", {headers:{"X-RollerSeal-Token":key}});
+    document.getElementById("backendVersion").textContent = data.version || "未知";
     state.columns = data.columns;
     state.flags = new Set(data.flags);
     state.defaults = data.defaults;
@@ -74,6 +75,7 @@ async function connect() {
     setConnection("已连接");
     els.accessDialog.close();
   } catch (error) {
+    document.getElementById("backendVersion").textContent = "未连接";
     setConnection(error.status === 401 || error.status === 403 ? "未连接" : "连接失败");
     showAccessDialog(error.status === 401 || error.status === 403 ? "API Key 不正确或已失效，请重新输入。" : "暂时无法连接服务，请稍后重试。");
   } finally {
@@ -616,14 +618,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const top = panel.getBoundingClientRect().top + window.scrollY;
     const footer = panel.querySelector('.table-footer');
     const footerHeight = footer ? footer.getBoundingClientRect().height : 0;
-    const height = tableViewportHeight(viewport, top, footerHeight, window.innerWidth <= 800);
+    const mobile = window.innerWidth <= 800;
+    const settings = document.querySelector('.settings');
+    const workspace = document.querySelector('.workspace');
+    const layout = workspace && getComputedStyle(workspace);
+    const outputHeight = mobile && settings
+      ? settings.getBoundingClientRect().height + (parseFloat(layout?.rowGap) || 0)
+      : 0;
+    const bottomSpace = mobile ? (parseFloat(layout?.paddingBottom) || 12) + 2 : 24;
+    const height = tableViewportHeight(viewport, top, footerHeight, mobile, outputHeight, bottomSpace);
     wrap.style.setProperty('--table-view-height', height + 'px');
   }
   function schedule() {
     if (!pending) { pending = true; requestAnimationFrame(update); }
   }
   const observer = new ResizeObserver(schedule);
-  for (const element of [document.querySelector('.topbar'),document.querySelector('.workspace-heading'),panel.querySelector('.table-footer')]) {
+  for (const element of [document.querySelector('.topbar'),document.querySelector('.workspace-heading'),panel.querySelector('.table-footer'),document.querySelector('.settings')]) {
     if (element) observer.observe(element);
   }
   window.addEventListener('resize', schedule);
@@ -631,8 +641,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (document.fonts) document.fonts.ready.then(schedule);
   schedule();
 });
-function tableViewportHeight(viewport, top, footer, mobile) {
-  const available = Math.max(0, viewport - footer - 24);
-  const desired = Math.max(84, viewport - top - footer - 24);
-  return Math.floor(Math.min(available, mobile ? 220 : available, desired));
+function tableViewportHeight(viewport, top, footer, mobile, output = 0, bottom = 24) {
+  const available = Math.max(0, viewport - footer - bottom);
+  const desired = Math.max(84, viewport - top - footer - output - bottom);
+  return Math.floor(Math.min(available, desired));
 }
