@@ -212,7 +212,7 @@ jobs:
           fi
           tag="v2.4.11"
           title="v2.4.11"
-          cat > dist/release-notes.md <<EOF
+          cat > dist/release-notes.md <<'EOF'
           ## v2.4.11
 
           ### 变更
@@ -221,9 +221,8 @@ jobs:
           - Windows/Linux 正式发布标签改用 `v*`；更新器继续兼容历史 `win-*` 标签。
 
           **完整变更**：https://github.com/EventHorizon-13/solidcraft-roller-seal/compare/win-2.4.10...v2.4.11
-
-          源码提交：$GITHUB_SHA
           EOF
+          printf '\n源码提交：%s\n' "$GITHUB_SHA" >> dist/release-notes.md
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" "${files[@]}" --clobber
             gh release edit "$tag" --title "$title" --notes-file dist/release-notes.md
