@@ -35,8 +35,8 @@ internal sealed record AppRelease(Version Version, string Tag, string PageUrl, U
 internal static class UpdateService
 {
     const string Repository="EventHorizon-13/solidcraft-roller-seal";
-    static readonly Uri ReleaseApi=new($"https://api.github.com/repos/{Repository}/releases/latest");
-    static readonly Uri ReleasesPage=new($"https://github.com/{Repository}/releases/latest");
+    static readonly Uri ReleasesApi=new($"https://api.github.com/repos/{Repository}/releases?per_page=100");
+    static readonly Uri ReleasesPage=new($"https://github.com/{Repository}/releases");
     static readonly HttpClient Client=CreateClient();
 
     static HttpClient CreateClient()
@@ -49,27 +49,39 @@ internal static class UpdateService
 
     public static async Task<AppRelease> GetLatestAsync(CancellationToken token=default)
     {
-        using var response=await Client.GetAsync(ReleaseApi,HttpCompletionOption.ResponseHeadersRead,token);
+        using var response=await Client.GetAsync(ReleasesApi,HttpCompletionOption.ResponseHeadersRead,token);
         response.EnsureSuccessStatusCode();
         await using var stream=await response.Content.ReadAsStreamAsync(token);
         using var json=await JsonDocument.ParseAsync(stream,cancellationToken:token);
         var root=json.RootElement;
         var target=UpdateTarget.Current;
-        string tag=root.GetProperty("tag_name").GetString()??throw new InvalidDataException("GitHub 发布信息没有版本号。");
-        if(!tag.StartsWith("win-",StringComparison.OrdinalIgnoreCase)||!Version.TryParse(tag[4..],out var version))
-            throw new InvalidDataException("GitHub 最新发布的版本号格式不正确。");
-        string page=root.GetProperty("html_url").GetString()??ReleasesPage.ToString();
+        return FindLatest(root,target,ReleasesPage.ToString())??throw new InvalidDataException("GitHub 没有找到包含当前平台安装包的正式发布。");
+    }
+
+    internal static AppRelease? FindLatest(JsonElement root,UpdateTarget target,string fallbackPage)
+    {
+        if(root.ValueKind!=JsonValueKind.Array)throw new InvalidDataException("GitHub 发布列表格式不正确。");
+        foreach(var release in root.EnumerateArray())
+        {
+            if(release.TryGetProperty("draft",out var draft)&&draft.ValueKind==JsonValueKind.True)continue;
+            if(release.TryGetProperty("prerelease",out var prerelease)&&prerelease.ValueKind==JsonValueKind.True)continue;
+            string tag=release.GetProperty("tag_name").GetString()??"";
+            if(!ReleaseTags.TryParseVersion(tag,out var version))continue;
+            if(!release.TryGetProperty("assets",out var assets)||assets.ValueKind!=JsonValueKind.Array)continue;
             JsonElement asset=default;
             foreach(string packageName in target.PackageNames)
             {
-                asset=root.GetProperty("assets").EnumerateArray().FirstOrDefault(a=>string.Equals(a.GetProperty("name").GetString(),packageName,StringComparison.Ordinal));
+                asset=assets.EnumerateArray().FirstOrDefault(a=>string.Equals(a.GetProperty("name").GetString(),packageName,StringComparison.Ordinal));
                 if(asset.ValueKind==JsonValueKind.Object)break;
             }
-        if(asset.ValueKind!=JsonValueKind.Object)throw new InvalidDataException("GitHub 最新发布缺少当前平台安装包。");
-        string url=asset.GetProperty("browser_download_url").GetString()??throw new InvalidDataException("当前平台安装包链接为空。");
-        long bytes=asset.GetProperty("size").GetInt64();
-        if(bytes<=0||bytes>600L*1024*1024)throw new InvalidDataException("当前平台安装包大小超出安全范围。");
-        return new(version,tag,page,new Uri(url),bytes,target);
+            if(asset.ValueKind!=JsonValueKind.Object)continue;
+            string page=release.GetProperty("html_url").GetString()??fallbackPage;
+            string url=asset.GetProperty("browser_download_url").GetString()??throw new InvalidDataException("当前平台安装包链接为空。");
+            long bytes=asset.GetProperty("size").GetInt64();
+            if(bytes<=0||bytes>600L*1024*1024)throw new InvalidDataException("当前平台安装包大小超出安全范围。");
+            return new(version,tag,page,new Uri(url),bytes,target);
+        }
+        return null;
     }
 
     public static bool IsNewer(AppRelease release)=>release.Version>Version.Parse(AppBuildInfo.Version);

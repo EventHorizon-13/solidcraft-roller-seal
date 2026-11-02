@@ -4,6 +4,34 @@ using System.Text;
 using System.Text.Json;
 using SolidCraftCsvTool;
 
+foreach(var expected in new Dictionary<string,Version>{
+    ["win-2.4.10"]=new(2,4,10),
+    ["v2.4.11"]=new(2,4,11),
+    ["V3.0.0"]=new(3,0,0)})
+{
+    if(!ReleaseTags.TryParseVersion(expected.Key,out var parsed)||parsed!=expected.Value)
+        throw new Exception("Release tag version parsing failed: "+expected.Key);
+}
+foreach(string invalid in new[]{"web-1.0.0","latest","v","win-next"})
+    if(ReleaseTags.TryParseVersion(invalid,out _))throw new Exception("Invalid release tag accepted: "+invalid);
+Console.WriteLine("PASS: win-* and v* release tag migration checks");
+
+var updateTarget=new UpdateTarget("windows","amd64",["StandardRollerSeal-windows-amd64.zip"],".zip",true);
+using var releaseDocument=JsonDocument.Parse("""
+[
+  {"tag_name":"web-2.0.0","draft":false,"prerelease":false,"html_url":"https://example.test/web","assets":[{"name":"web-linux-amd64.tar.gz","browser_download_url":"https://example.test/web.tar.gz","size":10}]},
+  {"tag_name":"v2.4.11","draft":false,"prerelease":true,"html_url":"https://example.test/pre","assets":[{"name":"StandardRollerSeal-windows-amd64.zip","browser_download_url":"https://example.test/pre.zip","size":10}]},
+  {"tag_name":"v2.4.11","draft":false,"prerelease":false,"html_url":"https://example.test/v2.4.11","assets":[{"name":"StandardRollerSeal-windows-amd64.zip","browser_download_url":"https://example.test/v2.4.11.zip","size":1024}]},
+  {"tag_name":"win-2.4.10","draft":false,"prerelease":false,"html_url":"https://example.test/win-2.4.10","assets":[{"name":"StandardRollerSeal-windows-amd64.zip","browser_download_url":"https://example.test/win-2.4.10.zip","size":1024}]}
+]
+""");
+var releases=releaseDocument.RootElement;
+var selected=UpdateService.FindLatest(releases,updateTarget,"https://example.test/releases")
+    ??throw new Exception("Platform-specific release selection returned null.");
+if(selected.Version!=new Version(2,4,11)||selected.Tag!="v2.4.11"||selected.PackageUrl.AbsoluteUri!="https://example.test/v2.4.11.zip")
+    throw new Exception("Platform-specific release selection chose the wrong release.");
+Console.WriteLine("PASS: GitHub release selection skips Web and prerelease entries");
+
 // Regression: bevel dimensions are optional only when both bevel switches are off.
 {
     foreach (var emptyColumns in new[] { new[] { 12 }, new[] { 13 }, new[] { 12, 13 } })

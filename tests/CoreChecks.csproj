@@ -10,6 +10,8 @@
     <PackageReference Include="netDxf" Version="2023.11.10" />
     <Compile Include="../src/SolidCraftCsvTool/BatchDrawingInputs.cs" Link="BatchDrawingInputs.cs" />
     <Compile Include="../src/SolidCraftCsvTool/OutputNames.cs" Link="OutputNames.cs" />
+    <Compile Include="../src/SolidCraftCsvTool/ReleaseTags.cs" Link="ReleaseTags.cs" />
+    <Compile Include="../src/SolidCraftCsvTool/UpdateService.cs" Link="UpdateService.cs" />
     <Compile Include="../src/SolidCraftCsvTool/HeadlessSession.cs" Link="HeadlessSession.cs" />
     <Compile Include="../src/SolidCraftCsvTool/LocalTemplates.cs" Link="LocalTemplates.cs" />
     <Compile Include="../src/SolidCraftCsvTool/Core.cs" Link="Core.cs" />

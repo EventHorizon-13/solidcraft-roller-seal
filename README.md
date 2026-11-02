@@ -2,11 +2,17 @@
 
 面向标准辊密封零件的参数化建模与工程出图工具。通过参数表或 CSV 批量管理尺寸，自动调用随包提供的 SolidCraft CLI，生成三维模型和加工图文件。
 
-**版本：2.4.9**
+**版本：2.4.10**
 
 **支持平台：** Windows 10/11（x64、ARM64 桌面版）；Linux（amd64、ARM64 命令行版）。目前没有 macOS 桌面版。
 
 [下载最新正式版](https://github.com/EventHorizon-13/solidcraft-roller-seal/releases/latest) · [查看所有版本](https://github.com/EventHorizon-13/solidcraft-roller-seal/releases) · [查看构建与 UI 测试](https://github.com/EventHorizon-13/solidcraft-roller-seal/actions)
+
+## 2.4.10 更新说明
+
+- 更新检查改为从 GitHub Releases 中按当前平台安装包选择版本，不再依赖单一“最新发布”，Web 版成为 Latest 时也不会干扰 Windows 桌面版更新。
+- 发布标签进入兼容迁移：`win-2.4.10` 为过渡版，从下一版起 Windows 正式版改用 `v2.4.11`；更新器同时识别两种格式。
+- 保留 `辊密封_MMDD_` 自定义文件名默认值，以及 2.4.9 的其他功能。
 
 ## 2.4.9 更新说明
 
@@ -120,6 +126,12 @@
 | `辊密封_MMDD.csv` | 当前任务参数快照（可关闭） |
 
 `MMDD` 是生成当天的月日。Windows 版自定义文件名默认采用 `辊密封_MMDD_`，日期变化时会自动更新；合并 STEP、CSV 导出、自定义名称、窗口宽高等设置会自动记住。
+
+### 发布标签
+
+- Windows/Linux 桌面与 CLI 正式版：`win-2.4.10` 为兼容过渡标签，从 2.4.11 起使用 `v2.4.11`。
+- 服务器 Web：继续使用 `web-*`；浏览器计算版继续使用 `web-client-*`。
+- 内置更新器按当前平台安装包资产识别正式发布，不依赖某次 Web 发布是否被设为 Latest。
 
 ## CSV 参数说明
 
